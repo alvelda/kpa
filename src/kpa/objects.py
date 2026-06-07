@@ -46,8 +46,11 @@ from kpa.styles import (
     Stylesheet,
     mutate_char_prop,
     mutate_para_prop,
+    mutate_shape_visual,
     resolve_char_props_for_run,
     resolve_para_props_for_run,
+    resolve_shape_visuals,
+    shape_style_id,
 )
 
 if TYPE_CHECKING:
@@ -112,6 +115,273 @@ def _find_storage_id(obj: dict[str, Any]) -> Optional[str]:
 # ============================================================
 
 
+# ============================================================
+# Shape-style mixin (Step 4c.2)
+# ============================================================
+
+
+class _ShapeStyleAccessors:
+    """Mixin providing fill/stroke/shadow/opacity/reflection/rotation/
+    flip accessors. Used by both :class:`TextBlock` and :class:`Image`.
+
+    Subclasses must provide:
+      - ``self._shape_archive`` — the raw shape archive dict
+      - ``self._slide`` — parent slide (for dirty marking)
+    """
+
+    _shape_archive: dict
+    _slide: "Slide"
+
+    # ---- internals ----
+
+    def _stylesheet_for_shape(self) -> Optional[Stylesheet]:
+        return self._slide._deck.stylesheet
+
+    def _style_id(self) -> Optional[str]:
+        return shape_style_id(self._shape_archive)
+
+    def _visuals(self) -> dict:
+        ss = self._stylesheet_for_shape()
+        sid = self._style_id()
+        if ss is None or sid is None:
+            return {}
+        return resolve_shape_visuals(ss, sid)
+
+    def _mutate_visual(self, prop_name: str, value) -> bool:
+        ss = self._stylesheet_for_shape()
+        sid = self._style_id()
+        if ss is None or sid is None:
+            return False
+        ok = mutate_shape_visual(ss, sid, prop_name=prop_name, value=value)
+        if ok:
+            self._slide._mark_dirty()
+        return ok
+
+    # ---- fill ----
+
+    @property
+    def fill_color(self) -> Optional[Color]:
+        """Solid-fill color, if any (returns None for non-color fills)."""
+        fill = self._visuals().get("fill")
+        if isinstance(fill, dict):
+            c = fill.get("color")
+            if isinstance(c, dict):
+                return Color.from_dict(c)
+        return None
+
+    @fill_color.setter
+    def fill_color(self, value):
+        self.set_fill_color(value)
+
+    def set_fill_color(self, value) -> bool:
+        """Set a solid color fill."""
+        c = coerce_color(value)
+        return self._mutate_visual("fill", {"color": c.as_dict()})
+
+    def clear_fill(self) -> bool:
+        """Remove the fill (set to empty dict)."""
+        return self._mutate_visual("fill", {})
+
+    # ---- stroke ----
+
+    @property
+    def stroke_color(self) -> Optional[Color]:
+        s = self._visuals().get("stroke")
+        if isinstance(s, dict):
+            c = s.get("color")
+            if isinstance(c, dict):
+                return Color.from_dict(c)
+        return None
+
+    @stroke_color.setter
+    def stroke_color(self, value):
+        self.set_stroke_color(value)
+
+    def set_stroke_color(self, value) -> bool:
+        ss = self._stylesheet_for_shape()
+        sid = self._style_id()
+        if ss is None or sid is None:
+            return False
+        cur = self._visuals().get("stroke")
+        new = dict(cur) if isinstance(cur, dict) else {}
+        new["color"] = coerce_color(value).as_dict()
+        return self._mutate_visual("stroke", new)
+
+    @property
+    def stroke_width(self) -> Optional[float]:
+        s = self._visuals().get("stroke")
+        if isinstance(s, dict):
+            w = s.get("width")
+            return float(w) if w is not None else None
+        return None
+
+    @stroke_width.setter
+    def stroke_width(self, value):
+        self.set_stroke_width(value)
+
+    def set_stroke_width(self, value: float) -> bool:
+        cur = self._visuals().get("stroke")
+        new = dict(cur) if isinstance(cur, dict) else {}
+        new["width"] = float(value)
+        return self._mutate_visual("stroke", new)
+
+    _STROKE_PATTERN_NAMES = {
+        "none": "TSDEmptyPattern",
+        "solid": "TSDSolidPattern",
+        "dashed": "TSDDashedPattern",
+        "dotted": "TSDDottedPattern",
+    }
+
+    @property
+    def stroke_pattern(self) -> Optional[str]:
+        s = self._visuals().get("stroke")
+        if isinstance(s, dict):
+            p = s.get("pattern")
+            if isinstance(p, dict):
+                t = p.get("type")
+                if isinstance(t, str):
+                    # TSDSolidPattern -> 'solid', etc.
+                    if t.startswith("TSD") and t.endswith("Pattern"):
+                        return t[3:-7].lower()
+                    return t
+        return None
+
+    def set_stroke_pattern(self, name: str) -> bool:
+        """Set the stroke pattern by name: 'none' / 'solid' / 'dashed' /
+        'dotted'."""
+        enum_name = self._STROKE_PATTERN_NAMES.get(name.lower())
+        if enum_name is None:
+            raise ValueError(
+                f"Unknown stroke pattern {name!r}; use one of "
+                f"{list(self._STROKE_PATTERN_NAMES)}"
+            )
+        cur = self._visuals().get("stroke")
+        new = dict(cur) if isinstance(cur, dict) else {}
+        pat = dict(new.get("pattern")) if isinstance(new.get("pattern"), dict) else {}
+        pat["type"] = enum_name
+        if "pattern" not in pat:
+            pat["pattern"] = []
+        if "count" not in pat:
+            pat["count"] = 0
+        if "phase" not in pat:
+            pat["phase"] = 0.0
+        new["pattern"] = pat
+        return self._mutate_visual("stroke", new)
+
+    def clear_stroke(self) -> bool:
+        """Remove the stroke (set pattern to none)."""
+        return self.set_stroke_pattern("none")
+
+    # ---- shadow ----
+
+    @property
+    def shadow_enabled(self) -> bool:
+        sh = self._visuals().get("shadow")
+        if isinstance(sh, dict):
+            return bool(sh.get("isEnabled", False))
+        return False
+
+    def set_shadow_enabled(self, enabled: bool) -> bool:
+        cur = self._visuals().get("shadow")
+        new = dict(cur) if isinstance(cur, dict) else {
+            "angle": 315.0,
+            "color": Color(0, 0, 0, 0.5).as_dict(),
+            "isEnabled": False,
+            "offset": 3.0,
+            "opacity": 0.5,
+            "radius": 5,
+            "type": "TSDDropShadow",
+        }
+        new["isEnabled"] = bool(enabled)
+        return self._mutate_visual("shadow", new)
+
+    @property
+    def shadow(self) -> Optional[dict]:
+        """Full shadow dict (angle, color, isEnabled, offset, opacity,
+        radius, type) or None."""
+        sh = self._visuals().get("shadow")
+        return dict(sh) if isinstance(sh, dict) else None
+
+    def set_shadow(
+        self,
+        *,
+        enabled: Optional[bool] = None,
+        color=None,
+        offset: Optional[float] = None,
+        angle: Optional[float] = None,
+        opacity: Optional[float] = None,
+        radius: Optional[float] = None,
+    ) -> bool:
+        """Set one or more shadow properties; others retain their current
+        values. Enables the shadow by default if any setter is provided
+        and ``enabled`` is not explicitly False.
+        """
+        cur = self._visuals().get("shadow")
+        new = dict(cur) if isinstance(cur, dict) else {
+            "angle": 315.0,
+            "color": Color(0, 0, 0, 0.5).as_dict(),
+            "isEnabled": True,
+            "offset": 3.0,
+            "opacity": 0.5,
+            "radius": 5,
+            "type": "TSDDropShadow",
+        }
+        if color is not None:
+            new["color"] = coerce_color(color).as_dict()
+        if offset is not None:
+            new["offset"] = float(offset)
+        if angle is not None:
+            new["angle"] = float(angle)
+        if opacity is not None:
+            new["opacity"] = float(opacity)
+        if radius is not None:
+            new["radius"] = radius if isinstance(radius, int) else int(round(radius))
+        if enabled is None:
+            # Auto-enable when any value was passed in (besides enabled).
+            if any(x is not None for x in (color, offset, angle, opacity, radius)):
+                new["isEnabled"] = True
+        else:
+            new["isEnabled"] = bool(enabled)
+        return self._mutate_visual("shadow", new)
+
+    # ---- opacity ----
+
+    @property
+    def opacity(self) -> Optional[float]:
+        op = self._visuals().get("opacity")
+        return float(op) if op is not None else None
+
+    @opacity.setter
+    def opacity(self, value):
+        self.set_opacity(value)
+
+    def set_opacity(self, value: float) -> bool:
+        return self._mutate_visual("opacity", float(value))
+
+    # ---- reflection ----
+
+    @property
+    def reflection_enabled(self) -> bool:
+        r = self._visuals().get("reflection")
+        if isinstance(r, dict):
+            # A non-empty reflection dict typically means it's active;
+            # presence of an 'opacity' field is the clearest marker.
+            return "opacity" in r and float(r.get("opacity", 0)) > 0
+        return False
+
+    def set_reflection(self, *, opacity: float = 0.5) -> bool:
+        """Enable reflection with the given opacity (0-1). Use
+        :meth:`clear_reflection` to remove."""
+        return self._mutate_visual("reflection", {"opacity": float(opacity)})
+
+    def clear_reflection(self) -> bool:
+        return self._mutate_visual("reflection", {})
+
+    def visual_summary(self) -> dict:
+        """Resolved shape visual properties for inspection."""
+        return dict(self._visuals())
+
+
 @dataclass
 class _Geometry:
     """View over a geometry dict (mutable reference into the YAML tree)."""
@@ -173,7 +443,7 @@ class _Geometry:
         )
 
 
-class TextBlock:
+class TextBlock(_ShapeStyleAccessors):
     """A text-bearing shape on a slide.
 
     Wraps a ShapeInfoArchive or PlaceholderArchive plus the
@@ -644,7 +914,7 @@ class TextBlock:
         }
 
 
-class Image:
+class Image(_ShapeStyleAccessors):
     """An image on a slide. Step 4b: position/size mutation only."""
 
     def __init__(
@@ -659,6 +929,11 @@ class Image:
         self._archive = archive
         self._archive_id = archive_id
         self._geometry = geometry
+
+    @property
+    def _shape_archive(self) -> dict[str, Any]:
+        """Alias for :attr:`_archive` required by :class:`_ShapeStyleAccessors`."""
+        return self._archive
 
     @property
     def geometry(self) -> Optional[_Geometry]:

@@ -1,6 +1,6 @@
 # KPA — Editable Surface Coverage
 
-**Last updated:** 2026-06-07 11:00 PDT (Step 4c.1 GREEN)
+**Last updated:** 2026-06-07 15:15 PDT (Step 4c.2 GREEN)
 
 Per Captain 2026-06-07 08:28 PDT, KPA must address every editable
 element in the `.key` file structure. This is the live coverage tracker
@@ -48,19 +48,24 @@ for the F2d success criterion.
 
 | Capability | Protobuf type(s) | Status | Test | Notes |
 |---|---|---|---|---|
-| `Shape.fill` (color) | TSWP.ShapeStyleArchive.fill | `unmapped` | — | 4c.2 |
-| `Shape.fill` (gradient) | TSWP.ShapeStyleArchive.fill.gradient | `unmapped` | — | 4c.2 |
-| `Shape.fill` (image) | TSWP.ShapeStyleArchive.fill.image | `unmapped` | — | 4c.2 |
-| `Shape.stroke` (color, width, dash) | TSWP.ShapeStyleArchive.stroke | `unmapped` | — | 4c.2 |
-| `Shape.shadow` | TSWP.ShapeStyleArchive.shadow | `unmapped` | — | 4c.2 |
-| `Drawable.opacity` | drawable.opacity | `unmapped` | — | 4c.2 |
-| `Shape.corner_radius` | pathsource.bezierPathSource | `unmapped` | — | 4c.2 |
-| `Drawable.angle` | geometry.angle | `prototyped` | — | Already in geometry dict; needs API |
-| `.flip_horizontal()`, `.flip_vertical()` | pathsource.horizontalFlip / verticalFlip | `unmapped` | — | 4c.2 |
-| `Image.fit_mode` | TSD.ImageArchive.fitType | `unmapped` | — | 4c.2 |
-| `Image.scale` | TSD.ImageArchive scale | `unmapped` | — | 4c.2 |
-| `Image.mask` | TSD.MaskArchive | `unmapped` | — | 4c.2 |
-| `Image.replace(asset_path)` | TSD.ImageArchive + Data/ swap | `unmapped` | — | 4c.2 |
+| `Shape.fill_color` (solid) | TSWP.ShapeStyleArchive `super.shapeProperties.fill.color` | **round-trip** | test_shape_styling_4c2.py::test_fill_color_round_trip | 4c.2 |
+| `Shape.fill` (gradient) | TSWP.ShapeStyleArchive.fill.gradient | `unmapped` | — | 4c.2.2 (gradient/image schema deferred) |
+| `Shape.fill` (image) | TSWP.ShapeStyleArchive.fill.image | `unmapped` | — | 4c.2.2 |
+| `Shape.stroke_color` | TSWP.ShapeStyleArchive `super.shapeProperties.stroke.color` | **round-trip** | test_shape_styling_4c2.py::test_stroke_color_round_trip | 4c.2 |
+| `Shape.stroke_width` | TSWP.ShapeStyleArchive `super.shapeProperties.stroke.width` | **round-trip** | test_shape_styling_4c2.py::test_stroke_width_round_trip | 4c.2 |
+| `Shape.stroke_pattern` (none/solid/dashed/dotted) | TSWP.ShapeStyleArchive `super.shapeProperties.stroke.pattern.type` (enum: TSDEmptyPattern/TSDSolidPattern/...) | **round-trip** | test_shape_styling_4c2.py::test_stroke_pattern_round_trip + test_clear_stroke_round_trip | 4c.2 |
+| `Shape.shadow` (enabled/color/offset/angle/opacity/radius) | TSWP.ShapeStyleArchive `super.shapeProperties.shadow.*` | **round-trip** | test_shape_styling_4c2.py::test_shadow_round_trip | 4c.2 |
+| `Drawable.opacity` | TSWP.ShapeStyleArchive `super.shapeProperties.opacity` | **round-trip** | test_shape_styling_4c2.py::test_opacity_round_trip | 4c.2 |
+| `Drawable.reflection` (opacity) | TSWP.ShapeStyleArchive `super.shapeProperties.reflection` | **round-trip** | test_shape_styling_4c2.py::test_reflection_round_trip | 4c.2 |
+| `Drawable.angle` (rotation) | geometry.angle | `prototyped` | — | Already in `_Geometry.angle`; needs setter API (4c.2.2) |
+| `Drawable.flip_horizontal/vertical` | pathsource.horizontalFlip / verticalFlip | `unmapped` | — | 4c.2.2 |
+| `Shape.corner_radius` | pathsource.bezierPathSource | `unmapped` | — | 4c.2.2 |
+| `Image.fit_mode` | TSD.ImageArchive.fitType | `unmapped` | — | 4c.2.2 |
+| `Image.scale` | TSD.ImageArchive scale | `unmapped` | — | 4c.2.2 |
+| `Image.mask` | TSD.MaskArchive | `unmapped` | — | 4c.2.2 |
+| `Image.replace(asset_path)` | TSD.ImageArchive + Data/ swap | `unmapped` | — | 4c.2.2 |
+| `_ShapeStyleAccessors` mixin (shared) | TSWP.ShapeStyleArchive + Stylesheet | **round-trip** | (implicit — all 4c.2 tests) | 4c.2 |
+| `visual_summary()` | resolved shapeProperties | **round-trip** | test_shape_styling_4c2.py::test_read_shape_visuals_from_real_deck | 4c.2 |
 
 ### 4c.3 — Layout + structure
 
@@ -138,6 +143,7 @@ for the F2d success criterion.
 |---|---|---|---|
 | 4a/4b (done) | 6 | 6 | 0 |
 | 4c.1 (text styling) | 20 | 13 | 7 (bullets, list_level, runs, dropcap, first_line_indent test) |
+| 4c.2 (shape visuals) | 12 | 9 | 3 (rotation, flip, gradient/image fills) |
 | 4c.2 (shape + effects) | 13 | 0 | 13 |
 | 4c.3 (layout) | 7 | 0 | 7 |
 | 4c.4 (animations) | 6 | 0 | 6 |
@@ -153,3 +159,4 @@ for the F2d success criterion.
 |---|---|---|
 | 2026-06-07 08:35 PDT | 4c kickoff | Coverage matrix initialized; Step 4c plan committed (PRD v1.3, DEV_PLAN updated). |
 | 2026-06-07 11:00 PDT | 4c.1 GREEN | Text styling: font/size/bold/italic/underline/color/alignment/line-spacing/space-before/space-after all round-trip green. 9/9 new tests passing; full suite 15/15 in 5m41s. `kpa.color.Color` value type + `kpa.styles.Stylesheet` resolver + `mutate_char_prop`/`mutate_para_prop` write path landed. Deferred to 4c.1.2: bullet/list_level/runs/dropcap (need more design for ListStyleArchive + per-run write semantics). Visual smoke pending. |
+| 2026-06-07 15:15 PDT | 4c.2 GREEN | Shape visual styling: fill_color / stroke (color/width/pattern/clear) / shadow (full param set) / opacity / reflection all round-trip green. 9/9 new tests passing; full suite 24/24 in 9m55s. `_ShapeStyleAccessors` mixin landed on TextBlock + Image. `kpa.styles.resolve_shape_visuals` + `mutate_shape_visual` + `shape_style_id` resolver/writer wired. Engineering finding: visuals live at `super.shapeProperties.{fill,stroke,shadow,opacity,reflection}` of the TSWP.ShapeStyleArchive's TSD base slice; resolver follows the `super` chain leaf-first. Deferred to 4c.2.2: rotation, horizontal/vertical flip (geometry-level, not style-level), gradient/image fills. Visual smoke pending. |

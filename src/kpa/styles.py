@@ -267,3 +267,152 @@ def mutate_para_prop(
     archive["overrideCount"] = int(archive.get("overrideCount", 0)) + 1
     stylesheet.mark_dirty()
     return True
+
+
+# ============================================================
+# Shape visual styling (4c.2)
+# ============================================================
+
+
+def _ensure_dict_at(node: dict[str, Any], key: str) -> dict[str, Any]:
+    """Like ``setdefault(key, {})`` but always returns a dict, replacing
+    a non-dict value if found."""
+    cur = node.get(key)
+    if not isinstance(cur, dict):
+        cur = {}
+        node[key] = cur
+    return cur
+
+
+def _walk_shape_style_visuals(stylesheet: Stylesheet, style_id: str | int):
+    """Yield every ``shapeProperties`` slice along the shape-style
+    inheritance chain.
+
+    Shape styles in Keynote nest via ``super.shapeProperties``: a
+    ``TSWP.ShapeStyleArchive`` carries TSWP-specific keys at its own
+    ``shapeProperties`` (padding, paragraphStyle) and the visual
+    properties (fill / stroke / shadow / opacity / reflection) at
+    ``super.shapeProperties`` of its TSD base slice. Each slice can
+    also reference a parent style by ``super.parent.identifier`` for
+    further inheritance.
+    """
+    archive = stylesheet.get(style_id)
+    if archive is None:
+        return
+    seen: set[int] = set()
+    cur = archive
+    while isinstance(cur, dict):
+        if id(cur) in seen:
+            break
+        seen.add(id(cur))
+        sp = cur.get("shapeProperties")
+        if isinstance(sp, dict):
+            yield sp
+        sup = cur.get("super")
+        if isinstance(sup, dict):
+            cur = sup
+            continue
+        # End of own-super chain: try the named parent style.
+        parent = (
+            cur.get("parent") if isinstance(cur.get("parent"), dict) else None
+        )
+        if isinstance(parent, dict) and "identifier" in parent:
+            cur = stylesheet.get(str(parent["identifier"]))
+        else:
+            break
+
+
+def resolve_shape_visuals(
+    stylesheet: Stylesheet, style_id: str | int
+) -> dict[str, Any]:
+    """Resolve effective shape visual properties (fill / stroke / shadow /
+    opacity / reflection) by walking the shape-style inheritance chain.
+
+    Child overrides win over parents.
+    """
+    out: dict[str, Any] = {}
+    for sp in _walk_shape_style_visuals(stylesheet, style_id):
+        for k, v in sp.items():
+            if k in ("fill", "stroke", "shadow", "opacity", "reflection"):
+                if k not in out:
+                    out[k] = v
+    return out
+
+
+def mutate_shape_visual(
+    stylesheet: Stylesheet,
+    style_id: str | int,
+    *,
+    prop_name: str,
+    value: Any,
+) -> bool:
+    """Set a single shape visual property (``fill`` / ``stroke`` /
+    ``shadow`` / ``opacity`` / ``reflection``) on the nearest slice in
+    the inheritance chain that already declares that property. If none
+    do, writes onto the deepest TSD slice.
+
+    Returns True on success.
+    """
+    archive = stylesheet.get(style_id)
+    if archive is None:
+        return False
+    # Find the deepest non-None super chain endpoint that's a sensible
+    # write target: prefer the slice that already declares prop_name
+    # so we don't change inheritance semantics. Fall back to the deepest.
+    target: Optional[dict[str, Any]] = None
+    chain: list[dict[str, Any]] = []
+    seen: set[int] = set()
+    cur = archive
+    while isinstance(cur, dict) and id(cur) not in seen:
+        seen.add(id(cur))
+        chain.append(cur)
+        sup = cur.get("super")
+        if isinstance(sup, dict):
+            cur = sup
+            continue
+        break
+    # Walk leaf-first looking for an existing declaration
+    for node in chain:
+        sp = node.get("shapeProperties")
+        if isinstance(sp, dict) and prop_name in sp:
+            target = node
+            break
+    if target is None and chain:
+        # Write on the deepest slice (TSD-level), where these properties
+        # are conventionally stored.
+        target = chain[-1]
+    if target is None:
+        return False
+    sp = _ensure_dict_at(target, "shapeProperties")
+    sp[prop_name] = value
+    target["overrideCount"] = int(target.get("overrideCount", 0)) + 1
+    stylesheet.mark_dirty()
+    return True
+
+
+# ----- shape-id discovery helpers -----
+
+
+def shape_style_id(shape_archive: dict[str, Any]) -> Optional[str]:
+    """Find the shape archive's style identifier.
+
+    Tries the conventional locations: top-level ``style.identifier``
+    (TSD.ImageArchive, TSD.ShapeArchive) and ``super.style.identifier``
+    (TSWP.ShapeInfoArchive nests its TSD slice under super).
+    """
+    if not isinstance(shape_archive, dict):
+        return None
+    # Walk super chain looking for the first 'style' reference.
+    seen: set[int] = set()
+    cur = shape_archive
+    while isinstance(cur, dict) and id(cur) not in seen:
+        seen.add(id(cur))
+        s = cur.get("style")
+        if isinstance(s, dict) and "identifier" in s:
+            return str(s["identifier"])
+        sup = cur.get("super")
+        if isinstance(sup, dict):
+            cur = sup
+        else:
+            break
+    return None
