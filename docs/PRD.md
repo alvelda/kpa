@@ -1,15 +1,36 @@
 # PRD — KPA (Keynote Programmatic Authoring)
 
-**Version:** 1.2
+**Version:** 1.3
 **Author:** Scotty (Chief Engineer, iMac)
 **Captain:** Phillip Alvelda
 **Created:** 2026-06-06
-**Approved:** 2026-06-06 by Captain (Telegram), v1.1 amendment 2026-06-07 07:33 PDT, v1.2 amendment 2026-06-07 08:01 PDT
+**Approved:** 2026-06-06 by Captain (Telegram); v1.1 amendment 2026-06-07 07:33 PDT; v1.2 amendment 2026-06-07 08:01 PDT; v1.3 amendment 2026-06-07 08:28 PDT
 **License:** MIT (open-source, eventual public release)
-**Status:** APPROVED — Step 4a foundation GREEN (commit 213bfd2); Step 4b mutation API next
+**Status:** APPROVED — Steps 4a + 4b GREEN (commit fab929b); Step 4c absorbs total-editable-surface scope expansion
 
 ## Changelog
 
+- **v1.3 — 2026-06-07 08:28 PDT** — **Total editable surface in scope.**
+  Per Captain: "Our programmatic editing capabilities extend to all the
+  aspects embedded in the presentation, including, but not limited to,
+  slide and slide element animations and their parameters, graphical
+  style settings for every element including things like font sizes,
+  justification, spacing, color, shadows, opacity, graphical masks and
+  shapes and scaling, videos and their settings such as looping and audio
+  levels….all editable elements in the file structure."
+  
+  Concrete impact: F2c (success criterion) restated as **total surface
+  coverage**. Editable-surface map captured empirically across SVEF + NCI:
+  88 distinct `_pbtype` values, 31,460 instances, taxonomized in
+  `docs/EDITABLE_SURFACE.md`. Step 4c expands to absorb text/shape/color/
+  shadow/opacity/mask/scaling/rotation/flip/z-order/group/animation/
+  transition/video/audio/soundtrack/motion-bg/notes/guides surfaces.
+  Charts + tables get pass-through styling in 4c, full object models in
+  Step 5. Coverage tracked in `docs/COVERAGE.md`. Universal `raw_archive`
+  escape hatch documented so agents can always reach in.
+  
+  Schedule impact: Step 4c grows from ~1 day to ~3 days. Step 4d ships
+  the full mutation API end to end. No PRD release-strategy change.
 - **v1.2 — 2026-06-07 08:01 PDT** — **Phase 2 sequence reversed.**
   Per Captain: "Let's move the cross format bridge to before our
   custom live editing canvas work." Phase 2a = Option 5 (PPTX bridge,
@@ -249,6 +270,19 @@ recovery dialog, save, diff to confirm no semantic drift.
       image/video generation is the agent's responsibility (KPA accepts
       paths and embeds bytes). The output passes F2 and brand-compliance
       checks.
+- [ ] **F2d — Total editable surface** (added v1.3, 2026-06-07 08:28 PDT):
+      KPA's mutation API addresses **every editable element** in the
+      `.key` file structure — text styling (font, size, weight, color,
+      alignment, line spacing, indent), shape styling (fill, stroke,
+      shadow, opacity, corner radius), geometry (position, size,
+      rotation, flip, scale), masks, z-order, group/ungroup, animations
+      (entrance, exit, emphasis with duration/delay/build-order), slide
+      transitions, videos (loop, autoplay, audio level, trim, poster
+      frame), audio/soundtrack, motion backgrounds, speaker notes,
+      guides, and the universal `raw_archive` escape hatch for anything
+      not yet typed. Surface map: `docs/EDITABLE_SURFACE.md`. Coverage:
+      `docs/COVERAGE.md`. Per-capability gate: round-trip test + visual
+      smoke in Keynote 14.5.
 - [ ] **F3 — Chart fidelity:** A KPA-authored chart (bar + line on the
       same axis) opens in Keynote, is editable (data table editable in
       Keynote's chart inspector), and renders identically to the same chart

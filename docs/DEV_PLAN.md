@@ -118,8 +118,86 @@ Split into 4a / 4b / 4c / 4d. Each sub-step is its own commit + push.
 
 **Commit:** `feat(kpa): 4b mutation API + 3 slide kinds + edits land`
 
-#### Step 4c — Remaining slide kinds + brand-compliance validator + asset grovel (Days 7b–8a)
+#### Step 4c — Total editable surface + remaining slide kinds + brand validator + asset grovel (Days 7b–9)
 
+**Scope expanded per Captain 2026-06-07 08:28 PDT:** mutation API now
+covers **every editable element** in the `.key` file structure. See
+`docs/EDITABLE_SURFACE.md` for the empirical map (88 distinct `_pbtype`
+values across SVEF + NCI). Step 4c grows from ~1 day to ~3 days to
+absorb this. Each capability ships with a round-trip test + visual
+smoke verification in Keynote 14.5.
+
+**4c.1 — Text styling (TSWP family)**
+- [ ] `TextBlock.font_name`, `.font_size`, `.font_weight`, `.italic`,
+      `.underline`, `.strikethrough`, `.color` (Color RGBA value type)
+- [ ] `TextBlock.alignment` (left/center/right/justify),
+      `.line_spacing`, `.first_line_indent`, `.before_paragraph_spacing`,
+      `.after_paragraph_spacing`
+- [ ] `TextBlock.bullet_style`, `.list_level` (TSWP.ListStyleArchive +
+      DropCap pass-through)
+- [ ] Run-level text: `TextBlock.runs` for per-character styling when
+      needed (set a single word bold, color a phrase, etc.)
+
+**4c.2 — Shape styling + visual effects**
+- [ ] `Shape.fill` (solid color, gradient, image fill)
+- [ ] `Shape.stroke` (color, width, dash, line cap)
+- [ ] `Shape.shadow = Shadow(color, offset_x, offset_y, blur, opacity)`
+- [ ] `Drawable.opacity` (0.0–1.0) — universal across text/shape/image/video
+- [ ] `Shape.corner_radius`
+- [ ] `Drawable.angle = N` (rotation in degrees), `.flip_horizontal()`,
+      `.flip_vertical()`
+- [ ] `Image.fit_mode` (stretch/fill/fit), `Image.scale`
+- [ ] `Image.mask` (TSD.MaskArchive read/write/replace),
+      `Image.crop_to_mask(shape)`
+
+**4c.3 — Layout + structure**
+- [ ] `Slide.bring_to_front(elem)`, `.send_to_back(elem)`,
+      `.reorder([...])` (KN.SlideArchive.drawablesZOrder)
+- [ ] `Slide.group([a, b, c])` returns `Group`; `Group.ungroup()`
+      (TSD.GroupArchive)
+- [ ] `Slide.guides.add(x_pt=None, y_pt=None)`, `.remove(g)`,
+      `.list()` (TSD.GuideStorageArchive)
+- [ ] `Slide.notes` get/set (KN.NoteArchive — speaker notes)
+
+**4c.4 — Animations + transitions**
+- [ ] `Element.entrance(effect, duration, delay, trigger)`,
+      `.exit(...)`, `.emphasis(...)` (KN.BuildArchive,
+      KN.BuildChunkArchive)
+- [ ] `Element.build_order` (animation ordering within a slide)
+- [ ] `Slide.transition = Transition(type, duration, direction, ...)`
+      (transition dict on KN.SlideArchive)
+- [ ] Catalog of supported effect names mapped to Keynote's internal
+      animation ids (dissolve, fade, push, magic move, swap, etc.)
+
+**4c.5 — Media (video + audio)**
+- [ ] `Video.loop`, `.autoplay`, `.start_time`, `.end_time` (trim),
+      `.audio_level` (0.0–1.0), `.poster_frame_time`, `.show_controls`
+      (TSD.MovieArchive, TSD.MediaStyleArchive)
+- [ ] `Video.replace(asset_path)` swap source file in Data/
+- [ ] `Deck.soundtrack = Soundtrack(asset, loop, volume, fade_in,
+      fade_out)` (KN.Soundtrack)
+- [ ] `Slide.motion_background = MotionBg(asset, ...)`
+      (KN.MotionBackgroundStyleArchive)
+- [ ] `LiveVideo` proxy (KN.LiveVideoSource) — read-only inspect first,
+      mutation in Step 5 if needed
+
+**4c.6 — Charts + tables (pass-through; full object models in Step 5)**
+- [ ] `Chart.style`, `.series[i].color`, `.axis.title`, `.legend.visible`
+      (TSCH.ChartStyleArchive, TSCH.ChartSeriesStyleArchive,
+      TSCH.ChartAxisStyleArchive, TSCH.LegendStyleArchive)
+- [ ] `Table.cell(r, c).value`, `.cell(r, c).set_style(...)` (TST.*)
+- [ ] Full TSCH/TST object models land in Step 5; 4c gives the
+      styling pass-through.
+
+**4c.7 — Universal escape hatch**
+- [ ] `Slide.raw_archive(id_or_pbtype) -> dict` returns the live YAML
+      dict for any archive on the slide. Mutations to this dict are
+      flushed on save (caller must call `slide._mark_dirty()` after).
+- [ ] `Deck.raw_archive(path)` for document-level archives
+      (Document.iwa, DocumentStylesheet.iwa, etc.)
+- [ ] Documented as the back-door for anything KPA hasn't typed yet.
+
+**4c.8 — Slide-kind library + brand validator + asset grovel**
 - [ ] Three remaining V1 slide kinds: `section_divider`, `quote`,
       `closing`. Additional kinds added incrementally from the SVEF/NCI
       inventory as agents need them. Step 5 adds `chart`.
@@ -141,9 +219,26 @@ Split into 4a / 4b / 4c / 4d. Each sub-step is its own commit + push.
         asset directory
       - consumable by `deck.brand_assets.search("logo")`,
         `.search(tag="video")`, `.use(asset_id)`
-- [ ] **S4.10 gate green** (validator passes on F2 deck).
 
-**Commit:** `feat(kpa): 4c remaining kinds + brand validator + asset grovel (F4b)`
+**4c gates (all must be GREEN to ship 4c):**
+- [ ] **S4.10** — brand validator passes on F2 deck
+- [ ] **S4.11** — F2d coverage: every capability in 4c.1–4c.7 has at
+      least one round-trip test
+- [ ] **S4.12** — visual smoke matrix: each capability category opened
+      manually in Keynote 14.5 with a sample mutation, confirmed to
+      render correctly
+- [ ] `docs/COVERAGE.md` updated to show each capability at `round-trip`
+      minimum (target: `visual-verified`)
+
+**Commit (per sub-section, pushed independently):**
+  - `feat(kpa): 4c.1 text styling (font/color/alignment/spacing/runs)`
+  - `feat(kpa): 4c.2 shape styling (fill/stroke/shadow/opacity/mask)`
+  - `feat(kpa): 4c.3 layout (z-order/group/guides/notes)`
+  - `feat(kpa): 4c.4 animations + transitions`
+  - `feat(kpa): 4c.5 media (video loop/audio/soundtrack/motion-bg)`
+  - `feat(kpa): 4c.6 charts + tables pass-through styling`
+  - `feat(kpa): 4c.7 universal raw_archive escape hatch`
+  - `feat(kpa): 4c.8 brand validator + asset grovel + slide kinds`
 
 #### Step 4d — CLI surgical-edit DSL + F2/F2b/F2c gates + CI + docs (Day 8)
 
@@ -370,6 +465,48 @@ complete. Phase 2 has two release tags: `v0.2.0` after Step 8,
 ---
 
 ## Status Log
+
+### 2026-06-07 08:35 PDT — Step 4b GREEN + Step 4c scope expansion (total editable surface)
+
+**Captain directive 2026-06-07 08:28 PDT:**
+  "Let's make sure that our programmatic editing capabilities extend to
+  all the aspects embedded in the presentation, including, but not
+  limited to, slide and slide element animations and their parameters,
+  graphical style settings for every element including things like font
+  sizes, justification, spacing, color, shadows, opacity, graphical
+  masks and shapes and scaling, videos and their settings such as
+  looping and audio levels….all editable elements in the file structure."
+
+**Empirical surface size (SVEF + NCI scan):**
+  - 88 distinct `_pbtype` values
+  - 31,460 archive instances
+  - 28 style-related types, 2 animation types, 5 media types
+
+**Captured in:**
+  - `docs/EDITABLE_SURFACE.md` — full empirical map of editable types
+  - `docs/COVERAGE.md` — live coverage tracker, 69 capabilities split
+    into 8 sub-sections (4c.1 through 4c.8)
+  - PRD v1.3 — F2d success criterion added (total editable surface)
+  - DEV_PLAN Step 4c expanded from ~1 day to ~3 days; sub-steps 4c.1
+    through 4c.8 each ship as their own commit
+
+**Step 4b complete (commit fab929b):**
+  - kpa.coords (pct/pt/px parsing)
+  - kpa.objects (Slide / TextBlock / Image proxies, _Geometry mutable view)
+  - kpa.deck extended (canvas read from KN.ShowArchive, lazy slide load,
+    dirty-set tracking, multi-chunk slide handling)
+  - tests/test_edits.py: 3 GREEN
+    - text_edit + move round-trip
+    - set_position('50%', '25%') -> exact pt coords
+    - image move round-trip
+  - Full suite: 6/6 PASSED in 89s
+  - Engineering finding: SVEF/NCI authors put real text in ad-hoc shapes,
+    not master title/body placeholders. Confirmed the inventory hypothesis
+    from 4a empirically in 4b.
+
+**Next: Step 4c.1 — text styling (font/color/alignment/spacing/runs).**
+
+---
 
 ### 2026-06-07 08:03 PDT — Step 4a GREEN + Phase 2 sequence locked
 
