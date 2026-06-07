@@ -148,3 +148,29 @@ Phase 1 is divided into **7 ordered steps**. Each step ends with a commit and a 
 - DEV_PLAN v1.0 written
 - Recon complete: schemas extractable, SVEF + NCI unpacked clean
 - Next: git init + sync-commit gate + HAL mirror + WorkManager entry
+
+### 2026-06-06 19:28 PDT — Sync-commit GATE PASSED
+- `git init`, initial commit `3a2cd74`
+- GitHub repo created: https://github.com/alvelda/kpa (public, MIT)
+- HAL mirror cloned at hal:scotty/projects/keynote-format; `hal` remote added on iMac
+- WorkManager: defers its own scaffold to a separate dir, conflict with our canonical workdir.
+  Skipped for now; planning to register the *existing* project via patch endpoint once
+  the WM API for "adopt existing path" is identified. Not blocking execution.
+- Step 1 checkboxes 6, 7, 8 (git init / GitHub push / HAL mirror) done.
+- Step 1 remaining: vendor keynote-parser, WorkManager registration (deferred)
+- Moving on to Step 2 schema harvest while substrate vendoring runs in parallel
+
+### 2026-06-06 19:30 PDT — Step 2 schema harvest GREEN
+- Vendored keynote-parser (psobot) into `vendor/keynote-parser/` (gitignored)
+- Created .venv with protobuf<4 + rich + python-snappy
+- Ran `dumper/protodump.py` against `/Applications/Keynote.app`
+  → 33 .proto files extracted to `schemas/14.5/raw/`
+- Normalized filenames + import paths via `scripts/normalize_schema_filenames.sh`
+  → `schemas/14.5/normalized/`
+- **📊 Diff vs keynote-parser bundled 14.4: 33 / 33 byte-identical.**
+  Apple shipped zero schema changes 14.4 → 14.5. R3 (schema drift) is very small
+  for point releases.
+- `schemas/14.5/CHANGES.md` documents the result and the re-harvest workflow
+- Step 2 done (raw extract + normalization + diff). Compile-to-Python and
+  smoke-test still to do but unblocked
+- Next: commit progress, then Step 3 IWA codec adaptation

@@ -13,6 +13,13 @@ reference-decks/unpacked/
 # Generated Python bindings (re-harvest from Keynote.app)
 src/kpa/_pb/*/
 
+# Vendored third-party source. We pin via submodule / known commit; we do not
+# track an unmodified copy in the public repo.
+vendor/
+
+# Raw schema dump (large; reproducible by re-running protodump.py)
+schemas/*/raw/
+
 # Python
 __pycache__/
 *.py[cod]
