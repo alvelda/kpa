@@ -246,25 +246,27 @@ PPTX export today.
 
 ---
 
-## Headline recommendation — LOCKED by Captain 2026-06-07 07:42 PDT
+## Headline recommendation — LOCKED by Captain 2026-06-07 07:42 PDT (reconfirmed 07:43)
 
 **Build order: Option 2 → Option 3-lite → Option 4 → Option 5.**
 **Insert Option 1 instantly when Anthropic opens Claude Design MCP.**
+
+**Strict ordering:** Option 4 ships completely before Option 5 starts.
+Earlier hedge about "Option 5 might land de facto first via PPTX import"
+is retracted per Captain 2026-06-07 07:43 PDT.
 
 Phase mapping:
 
 - **Phase 1 (now)** — ship Option 2 (Keynote.app human review,
   effectively free with F1) and Option 3-lite (`kpa preview` headless
   PNG thumbnails) alongside F2/F3/F4/F5.
-- **Phase 2** — build Option 4 (custom HTML canvas / Claude-Design-like
-  surface inside KPA itself) to support conversational + physical edits
-  for fleet agents that don't have Keynote.app. **Scotty's flag:** this
-  is a 3–6 month lift; Option 5 (PPTX bridge via Claude Design today)
-  will likely come online de facto when Phase 2 PPTX import ships,
-  which means Captain can be using Claude Design → PPTX → KPA before
-  Option 4 lands. That's fine and complementary.
-- **Phase 3 / parallel** — ship Option 5 (PPTX import / export) as the
-  cross-format bridge.
+- **Phase 2a** — build Option 4 (custom HTML canvas / Claude-Design-like
+  surface inside KPA itself). Strategic surface, our IP, brand-controlled,
+  no third-party dependency. **Scotty's flag:** 3–6 month lift, but it's
+  the differentiator and Captain has prioritized it.
+- **Phase 2b** — ship Option 5 (PPTX import / export) as the cross-format
+  bridge **after** Option 4 is feature-complete. Commodity interop layer,
+  4–6 weeks once Option 4 is solid.
 - **Anytime trigger** — monitor Anthropic announcements (cron job runs
   weekly; see DEV_PLAN). The day Claude Design opens its MCP surface to
   third-party servers, KPA's existing MCP server gets two extra tools

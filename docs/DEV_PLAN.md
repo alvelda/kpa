@@ -287,11 +287,17 @@ builds Option 4 then Option 5; Option 1 inserts on Anthropic announce.
 
 ## Phase 2 (Custom HTML canvas + PPTX bridge)
 
-Per Captain's locked sequence 2026-06-07 07:42 PDT, Phase 2 builds
-**Option 4 first** (custom HTML canvas / Claude-Design-like surface
-inside KPA), then **Option 5** (PPTX import/export). Option 5 likely
-comes online de facto via PPTX import before Option 4 finishes — that's
-fine and complementary.
+Per Captain's locked sequence (2026-06-07 07:42 PDT, **reconfirmed 07:43**):
+Phase 2 builds **Option 4 first** (custom HTML canvas / Claude-Design-like
+surface inside KPA), **then** Option 5 (PPTX import/export). **Option 4
+strictly precedes Option 5** — we don't start PPTX work until Option 4 is
+feature-complete and shipped. Earlier waffling about "Option 5 might land
+de facto first" is retracted.
+
+Rationale: Option 4 is the strategic surface (gives Captain + agents a
+live editing canvas that's brand-controlled, our IP, no third-party
+dependency). Option 5 is the interop bridge — valuable but commodity.
+Build the differentiator first.
 
 ### Step 8 — Custom HTML canvas (Option 4) — 3–6 months
 
