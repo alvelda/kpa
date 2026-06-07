@@ -1,0 +1,35 @@
+# Reference decks — local cache only, not for the public repo
+recon/*.key
+recon/*.pdf
+recon/*.pptx
+reference-decks/*.key
+reference-decks/*.pdf
+reference-decks/*.pptx
+
+# Unpacked reference deck trees
+recon/unpacked/
+reference-decks/unpacked/
+
+# Generated Python bindings (re-harvest from Keynote.app)
+src/kpa/_pb/*/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.venv*/
+build/
+dist/
+
+# macOS
+.DS_Store
+*.swp
+
+# IDE
+.vscode/
+.idea/
+
+# Test artifacts
+tests/_out/
+*.thumbnail.png
