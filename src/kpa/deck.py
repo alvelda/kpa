@@ -2,7 +2,7 @@
 kpa.deck — Deck object model
 =============================
 
-Step 4a foundation. The ``Deck`` class is the entry point for both
+Step 4a + Step 4b. The ``Deck`` class is the entry point for both
 template-anchored authoring and surgical editing of existing ``.key``
 files.
 
@@ -16,9 +16,14 @@ Step 4a scope:
     yields the same per-file sha256 set as the source. This is the
     "no-op mutation" gate (S4.1).
 
-Step 4b adds mutation methods (``slide[i].title.move(...)`` etc.)
-Step 4c adds brand-compliance validation.
-Step 4d adds the CLI DSL.
+Step 4b scope (new):
+  - ``deck.slide[i]`` returns a :class:`kpa.objects.Slide` proxy.
+  - ``slide.title``, ``slide.body``, ``slide.texts``, ``slide.images``.
+  - Mutations write through into the loaded YAML tree, which is
+    re-serialized on :meth:`save`.
+  - F2b smoke: ``slide[i].title.set_text("New")``,
+    ``slide[i].title.move(dy="20%")``, ``slide[i].body.set_position(...)``
+    — saved deck opens cleanly in Keynote.app.
 
 Internals:
   We wrap keynote-parser's existing ``File`` abstraction (which handles
@@ -33,55 +38,49 @@ from __future__ import annotations
 
 import builtins
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
-# We import keynote_parser lazily because protobuf import is heavy
-# and we want the package to import quickly even when only metadata is
-# needed.
+import yaml
+
+_py_open = builtins.open  # avoid shadowing by module-level ``open`` below
+
+from kpa.coords import DEFAULT_CANVAS
+from kpa.objects import Slide, SlideList, _walk
 
 
 class Deck:
     """A Keynote presentation.
 
-    Step 4a: load + save + summary only. Mutation API lands in Step 4b.
-
-    Use cases:
-
-      >>> # Load existing deck for inspection
-      >>> deck = kpa.open("path/to/deck.key")
-      >>> print(deck.summary())
-
-      >>> # Load existing deck as template for new authoring
-      >>> deck = kpa.Deck.from_template("path/to/template.key")
-      >>> # ... mutations in Step 4b ...
-      >>> deck.save("path/to/output.key")
+    Step 4a: load + save + summary.
+    Step 4b: ``deck.slide[i]`` mutation surface.
     """
 
     def __init__(self, source_path: str | Path | None = None):
         """Create a Deck. Most users go through Deck.from_template() or kpa.open()."""
         self._source_path: Path | None = Path(source_path) if source_path else None
-        self._workdir: Path | None = None  # set by _load
-        self._owns_workdir: bool = False  # if True, cleanup on close
-        self._unpacked_root: Path | None = None  # path to unpacked tree
+        self._workdir: Path | None = None
+        self._owns_workdir: bool = False
+        self._unpacked_root: Path | None = None
+        # 4b internals
+        self._slide_yaml_paths: list[Path] = []
+        self._loaded_slides: dict[int, Slide] = {}
+        self._dirty_slides: set[int] = set()
+        self._canvas: tuple[float, float] = DEFAULT_CANVAS
 
     # --- construction --------------------------------------------------
 
     @classmethod
-    def from_template(cls, path: str | Path) -> Deck:
-        """Load an existing ``.key`` file as a template for authoring/editing.
-
-        This is the canonical Step 4a entry point. Equivalent to ``kpa.open(path)``
-        for now; Step 4b distinguishes the two by behavior (``from_template``
-        also exposes the template's slide kinds as cloning sources).
-        """
+    def from_template(cls, path: str | Path) -> "Deck":
+        """Load an existing ``.key`` file as a template for authoring/editing."""
         deck = cls(source_path=path)
         deck._load()
         return deck
 
     @classmethod
-    def open(cls, path: str | Path) -> Deck:
+    def open(cls, path: str | Path) -> "Deck":
         """Module-level ``kpa.open(path)`` delegate."""
         deck = cls(source_path=path)
         deck._load()
@@ -96,19 +95,12 @@ class Deck:
         if not self._source_path.exists():
             raise FileNotFoundError(self._source_path)
 
-        # Use keynote-parser's unpack pipeline so we inherit all of our
-        # patches (Bug #1-#5) without re-implementing.
         from keynote_parser.codec import IWAFile  # noqa: F401  (verifies env)
-        from keynote_parser.file_utils import process
 
         self._workdir = Path(tempfile.mkdtemp(prefix="kpa_deck_"))
         self._owns_workdir = True
         self._unpacked_root = self._workdir / "unpacked"
 
-        # process(input, output_dir, mode='unpack') from keynote-parser
-        # — we shell out to the CLI for now because the public Python API
-        # is thin. Step 4b: import the function directly for speed.
-        import subprocess
         result = subprocess.run(
             [
                 "keynote-parser", "unpack",
@@ -125,17 +117,105 @@ class Deck:
                 f"  stderr: {result.stderr[-500:]}"
             )
 
+        # Catalog slide YAML files in slide order. We need to read the
+        # Document.iwa.yaml to find slide ordering. For Step 4b we use a
+        # simpler approach: sort by file numeric id (which matches Keynote's
+        # internal slide-creation order, generally NOT presentation order).
+        # Step 5 will resolve real presentation order from KN.ShowArchive.
+        idx_dir = self._unpacked_root / "Index"
+
+        # Slide files are named ``Slide-<id>.iwa.yaml`` or, for slides
+        # whose IWA payload spans multiple chunks, ``Slide-<id>-<n>.iwa.yaml``.
+        # We only want the primary file per slide id (the one without a
+        # trailing ``-<n>`` chunk suffix).
+        def _slide_sort_key(p: Path):
+            stem = p.stem.replace(".iwa", "")
+            parts = stem.split("-")
+            # parts[0] == 'Slide'
+            try:
+                primary_id = int(parts[1])
+            except (IndexError, ValueError):
+                return (10**12, 0, stem)
+            chunk_suffix = 0
+            if len(parts) > 2:
+                try:
+                    chunk_suffix = int(parts[2])
+                except ValueError:
+                    chunk_suffix = 999
+            return (primary_id, chunk_suffix, stem)
+
+        all_slide_files = sorted(
+            idx_dir.glob("Slide-*.iwa.yaml"),
+            key=_slide_sort_key,
+        )
+        # Keep only the primary chunk per slide id.
+        seen_ids: set[int] = set()
+        primary: list[Path] = []
+        for p in all_slide_files:
+            stem = p.stem.replace(".iwa", "")
+            parts = stem.split("-")
+            try:
+                pid = int(parts[1])
+            except (IndexError, ValueError):
+                continue
+            if pid in seen_ids:
+                continue
+            if len(parts) == 2:  # primary chunk
+                seen_ids.add(pid)
+                primary.append(p)
+        self._slide_yaml_paths = primary
+
+        # Resolve canvas dimensions from Document.iwa.yaml's KN.ShowArchive.
+        doc_path = idx_dir / "Document.iwa.yaml"
+        if doc_path.exists():
+            try:
+                with _py_open(doc_path) as _fh:
+                    doc = yaml.safe_load(_fh)
+                for sub in _walk(doc):
+                    if isinstance(sub, dict) and sub.get("_pbtype") == "KN.ShowArchive":
+                        size = sub.get("size")
+                        if (
+                            isinstance(size, dict)
+                            and "width" in size
+                            and "height" in size
+                        ):
+                            self._canvas = (
+                                float(size["width"]),
+                                float(size["height"]),
+                            )
+                            break
+            except yaml.YAMLError:
+                pass  # fall back to DEFAULT_CANVAS
+
     def save(self, path: str | Path) -> Path:
         """Write the deck back to disk as a ``.key`` file.
 
-        Step 4a: pure round-trip (no mutations applied). F1 parity is
-        the test invariant.
+        Step 4b: flushes any in-memory slide mutations to the unpacked
+        YAML tree, then calls keynote-parser pack to re-zip.
         """
         if self._unpacked_root is None:
             raise RuntimeError("Deck has not been loaded; call from_template() first.")
+
+        # Flush all dirty slides back to YAML on disk
+        for i in sorted(self._dirty_slides):
+            if i in self._loaded_slides:
+                slide = self._loaded_slides[i]
+                yaml_path = slide._yaml_path
+                # keynote-parser default_flow_style + sort_keys settings:
+                # we have to match the format keynote-parser emits so the
+                # round-trip is sha256-stable when nothing's changed.
+                with _py_open(yaml_path, "w") as f:
+                    yaml.dump(
+                        slide._yaml_root,
+                        f,
+                        default_flow_style=False,
+                        sort_keys=False,
+                        allow_unicode=True,
+                    )
+        self._dirty_slides.clear()
+
         out = Path(path)
         out.parent.mkdir(parents=True, exist_ok=True)
-        import subprocess
         result = subprocess.run(
             [
                 "keynote-parser", "pack",
@@ -153,14 +233,64 @@ class Deck:
             )
         return out
 
+    # --- slide access (4b) --------------------------------------------
+
+    @property
+    def slide(self) -> SlideList:
+        """Indexable view of slides: ``deck.slide[0]``, ``deck.slide[3]``."""
+        return SlideList(self)
+
+    @property
+    def slides(self) -> SlideList:
+        """Plural alias for ``deck.slide``."""
+        return SlideList(self)
+
+    @property
+    def canvas(self) -> tuple[float, float]:
+        """Slide canvas dimensions in points: (width, height)."""
+        return self._canvas
+
+    def _load_slide(self, index: int) -> Slide:
+        """Internal — load slide at ``index``, caching the parsed YAML root."""
+        if index < 0:
+            index += len(self._slide_yaml_paths)
+        if not (0 <= index < len(self._slide_yaml_paths)):
+            raise IndexError(
+                f"Slide index {index} out of range; deck has "
+                f"{len(self._slide_yaml_paths)} slides."
+            )
+        if index in self._loaded_slides:
+            return self._loaded_slides[index]
+        yaml_path = self._slide_yaml_paths[index]
+        with _py_open(yaml_path) as f:
+            root = yaml.safe_load(f)
+        slide = Slide(
+            deck=self,
+            index=index,
+            yaml_path=yaml_path,
+            yaml_root=root,
+            canvas=self._canvas,
+        )
+        self._loaded_slides[index] = slide
+        # Once we expose a mutable proxy we have to assume the caller
+        # might mutate it before save. Mark dirty pre-emptively. (This is
+        # over-eager but safe: re-serializing an unchanged YAML through
+        # PyYAML may not be byte-identical, so we don't dirty unless the
+        # caller actually mutates.)
+        # ... so we DON'T set dirty here. mark_dirty() is called by
+        # mutator methods on Slide/TextBlock/Image.
+        return slide
+
+    def mark_dirty(self, index: int):
+        """Internal — mark a slide as needing re-serialization on save."""
+        self._dirty_slides.add(index)
+
     # --- summary -------------------------------------------------------
 
     def summary(self) -> str:
-        """Human-readable text summary of the deck."""
         if self._unpacked_root is None:
             return "<Deck: not loaded>"
-        idx = self._unpacked_root / "Index"
-        n_slides = len(list(idx.glob("Slide-*.iwa.yaml"))) if idx.exists() else 0
+        n_slides = len(self._slide_yaml_paths)
         n_data = (
             len(list((self._unpacked_root / "Data").iterdir()))
             if (self._unpacked_root / "Data").exists()
@@ -170,6 +300,7 @@ class Deck:
             f"<Deck: {self._source_path}\n"
             f"  slides: {n_slides}\n"
             f"  data assets: {n_data}\n"
+            f"  canvas: {self._canvas[0]:.0f} x {self._canvas[1]:.0f} pt\n"
             f"  workdir: {self._unpacked_root}>"
         )
 
@@ -179,11 +310,13 @@ class Deck:
     # --- cleanup -------------------------------------------------------
 
     def close(self):
-        """Remove the working directory. Optional; gc will do this too."""
         if self._owns_workdir and self._workdir and self._workdir.exists():
             shutil.rmtree(self._workdir, ignore_errors=True)
             self._workdir = None
             self._unpacked_root = None
+            self._slide_yaml_paths = []
+            self._loaded_slides.clear()
+            self._dirty_slides.clear()
 
     def __enter__(self):
         return self
@@ -193,8 +326,5 @@ class Deck:
 
 
 def open(path: str | Path) -> Deck:  # noqa: A004 (intentional shadow at module level)
-    """Open a ``.key`` file as a :class:`Deck`.
-
-    Equivalent to :meth:`Deck.open`.
-    """
+    """Open a ``.key`` file as a :class:`Deck`. Equivalent to :meth:`Deck.open`."""
     return Deck.open(path)
