@@ -65,14 +65,134 @@ Phase 1 is divided into **7 ordered steps**. Each step ends with a commit and a 
 
 ### Step 4 — Object-graph authoring + Python API (Days 5–8)
 
-- [ ] `kpa.Deck`, `kpa.Slide`, `kpa.Text`, `kpa.Image`, `kpa.Shape`
-- [ ] Archive-ID allocator (R1 mitigation: collisions and forward refs)
-- [ ] Theme binding — ingest a reference deck and re-use its masters / colors / fonts
-- [ ] Greenfield authoring: title slide, section divider, text+image, bullet list, quote, closing
-- [ ] CLI: `kpa author --spec deck.py --out deck.key`
-- [ ] **F2 test:** 10-slide greenfield deck, opens clean, saves clean
+**See `docs/STEP4_BRIEF.md` for full planning context.**
+**Captain Q1–Q6 answers (2026-06-07 07:30 PDT) folded in.**
 
-**Commit:** `feat(kpa): object-graph authoring + F2 (greenfield) green`
+Split into 4a / 4b / 4c / 4d. Each sub-step is its own commit + push.
+
+#### Step 4a — Foundation: archive graph + ID allocator + template parity (Day 5)
+
+- [ ] Inventory SVEF and NCI: enumerate every distinct slide kind
+      present in both decks. Produce `docs/SLIDE_KINDS.md` listing
+      observed kinds (title, content, divider, image, bullet, quote,
+      chart, table, etc. — actual list from inventory, not theoretical).
+- [ ] `kpa.Deck.from_template(path)` — loads existing `.key` into the
+      Python object model.
+- [ ] `kpa.Element` base class — stable addressable handle
+      (`element.id`, `element.path`, `element.kind`, `element.role`).
+- [ ] `SlideTreeManager` — atomic updates of `slidelist`, navigator,
+      thumbnail index, archive registry. Prevents R1 / S4-R1 invariant
+      drift.
+- [ ] `ArchiveIDAllocator` — reads template `max_id`, allocates above
+      it, verifies non-collision before write. Deterministic on
+      `(deck_hash, allocation_order)` so re-runs produce stable IDs.
+- [ ] No-op mutation test: `kpa.Deck.from_template(svef).save(out)` must
+      produce a deck where F1 round-trip is still 628/628 byte-identical.
+      Same for NCI 325/325.
+- [ ] Default brand-neutral template harvested from Apple's stock
+      "White" or "Modern Portfolio" theme. Vendored at
+      `kpa/templates/_default_neutral.key`.
+- [ ] **S4.1 + S4.5 gate green.**
+
+**Commit:** `feat(kpa): 4a foundation — template parity + ID allocator`
+
+#### Step 4b — Text + Image mutation API + first 3 slide kinds (Days 6–7a)
+
+- [ ] `kpa.TextBlock` with `.text`, `.set_font(name, size?, weight?)`,
+      `.move(dx, dy, units="pct|pt|px")`, `.set_position(x, y)`,
+      `.resize(w, h)`, `.set_color(rgb_or_named)`.
+- [ ] `kpa.Image` with `.set_source(path)`, `.move`, `.resize`,
+      `.crop`, `.set_opacity`.
+- [ ] `kpa.AssetManager` — atomic embed of new image bytes into
+      `Data/`, creates `Datas` archive entry, generates stable
+      `<name>-<id>.<ext>` filename, anchors fill/imageMedia ref.
+- [ ] Coordinate engine: pct ↔ pt ↔ px conversion with explicit
+      reference frames.
+- [ ] Address-book resolver: `deck.slide[i].title`,
+      `deck.slides.where(role="title")`, `deck.find("slide-3-hero")`.
+      Round-trips stable across re-save.
+- [ ] Three slide kinds end-to-end (cloned, mutated, re-anchored):
+      `title`, `text_image`, `bullet_list`.
+- [ ] Mid-checkpoint: F2-edit smoke (move, font swap, image swap) green
+      against SVEF.
+
+**Commit:** `feat(kpa): 4b mutation API + 3 slide kinds + edits land`
+
+#### Step 4c — Remaining slide kinds + brand-compliance validator + asset grovel (Days 7b–8a)
+
+- [ ] Three remaining V1 slide kinds: `section_divider`, `quote`,
+      `closing`. Additional kinds added incrementally from the SVEF/NCI
+      inventory as agents need them. Step 5 adds `chart`.
+- [ ] `kpa.Theme` (partial — just enough for the validator; full theme
+      system lives in Step 6).
+- [ ] `kpa.BrandComplianceValidator`:
+      - non-theme fonts → reject (configurable warn)
+      - non-palette colors → flag
+      - off-grid positions → snap or flag
+      - `brand_override=True` opt-out logged to audit trail
+- [ ] `kpa harvest --assets <dir> --out <library>` recursive scanner
+      (F4b from PRD v1.1):
+      - walks directory tree for `.key` files
+      - unpacks each; extracts every `Data/*` (images, video, fonts,
+        chart templates)
+      - deduplicates by content hash (sha256)
+      - indexes by source-deck path + slide index + element role
+      - emits a `kpa.BrandAssetLibrary` JSON manifest + content-addressed
+        asset directory
+      - consumable by `deck.brand_assets.search("logo")`,
+        `.search(tag="video")`, `.use(asset_id)`
+- [ ] **S4.10 gate green** (validator passes on F2 deck).
+
+**Commit:** `feat(kpa): 4c remaining kinds + brand validator + asset grovel (F4b)`
+
+#### Step 4d — CLI surgical-edit DSL + F2/F2b/F2c gates + CI + docs (Day 8)
+
+- [ ] CLI sugar: `kpa author --spec deck.py --template <path?> --out deck.key`
+- [ ] CLI surgical edits: `kpa edit deck.key 'slide[3].title.move(dy="20%")'`
+      Parses DSL into Python API calls. Same code path as MCP JSON
+      form (design invariant).
+- [ ] Headless `kpa.open(path).save(path2)` parity (S4.4).
+- [ ] **F2 test gate** (S4.2 + S4.3): 10-slide greenfield deck opens
+      in Keynote 14.5, zero recovery dialogs, saves clean on second open.
+- [ ] **F2b test gate** (S4.9 — surgical-edit suite): load SVEF,
+      apply 5 named edits via API, save, re-open in Keynote.app, every
+      edit persisted, zero recovery dialogs.
+- [ ] **F2c smoke**: scripted agent prompt → KPA-authored deck (verifies
+      API handles planner output; full F2c with LLM in the loop lives
+      in Step 7).
+- [ ] `docs/authoring.md` with worked example.
+- [ ] CI extension: `tests/test_authoring.py` + `tests/test_edits.py`.
+- [ ] **Option 2 ships here** (Captain's locked sequence): Keynote.app
+      as human review surface. Document workflow in
+      `docs/review_with_keynote.md`. Zero-code; usage notes only.
+- [ ] Sub-step retrospective.
+
+**Commit:** `feat(kpa): 4d CLI DSL + F2/F2b/F2c green + Option 2 documented`
+
+**Step 4 exit gate:** S4.1–S4.10 ticked. F1 still green. All four
+sub-step commits pushed to origin (HAL pulls).
+
+#### Step 4 plan-level commitments
+
+- Slide-kind taxonomy: growing library from SVEF + NCI inventory
+  (Captain Q3).
+- Default template: brand-neutral Apple (Captain Q1).
+- Spec format: imperative API canonical, declarative dict sugar
+  (Captain Q2). MCP server consumes the JSON form.
+- Test assets: CC0 set + procedural generation (Captain Q4).
+- Round-trip-with-mutation: KPA headless in CI, AppleScript at release
+  (Captain Q5).
+- Release: `v0.1` private to fleet after F1–F5, `v0.2` public after
+  F6–F8 (Captain Q6).
+- Coordinate semantics: pct (default) / pt / px. `move()` relative;
+  `set_position()` from slide canvas top-left.
+- Edit DSL invariance: Python API, CLI sugar, MCP JSON of the same
+  edit must produce byte-identical output. CI-enforced design invariant.
+- Conversational LLM editing (Captain 2026-06-07 07:42 PDT): full-power
+  natural-language understanding of any aspect is the agent's job
+  (Step 7 critic + MCP). The API must be expressive enough that the
+  agent can translate any reasonable natural-language edit into
+  KPA calls. API gaps get fixed.
 
 ### Step 5 — Native editable charts (Days 9–11)
 
@@ -95,6 +215,47 @@ Phase 1 is divided into **7 ordered steps**. Each step ends with a commit and a 
 **Commit:** `feat(kpa): design language + F4/F8 green`
 **Captain review milestone.**
 
+### Step 6.5 — Graphical review hooks (Day 14b, runs alongside Step 6)
+
+**Per Captain's locked sequencing 2026-06-07 07:42 PDT:**
+Option 2 → Option 3-lite → (Option 1 if Anthropic opens MCP) →
+Option 4 → Option 5. Phase 1 ships Options 2 and 3-lite; Phase 2
+builds Option 4 then Option 5; Option 1 inserts on Anthropic announce.
+
+- [ ] **Option 2 already shipped in Step 4d** (Keynote.app as human
+      review surface, documented).
+- [ ] **Option 3-lite** — `kpa preview deck.key --out preview/`:
+      - renders every slide to a PNG via same code path as Step 7's
+        `kpa_render_thumbnail` MCP tool
+      - supports `--format png|svg|html` (HTML lite, not interactive)
+      - headless: works on Linux CI runners
+      - visual-regression threshold: ~5–10% (HTML render lossier than
+        Keynote.app; charts use Step-5 native renderer)
+      - emits per-slide PNG + per-deck contact sheet
+- [ ] **Anthropic-watch trigger** — weekly cron job checking
+      https://www.anthropic.com/news for Claude Design MCP opening.
+      Default delivery: announce to telegram:8383711967 with summary +
+      link. When trigger fires, Step 6.6 inserts ahead of in-flight work.
+
+**Commit:** `feat(kpa): 6.5 preview hooks + Option 2/3-lite + Anthropic watch`
+
+### Step 6.6 (CONDITIONAL) — Claude Design MCP integration (Option 1)
+
+**Trigger:** Anthropic-watch cron job fires "Claude Design MCP open."
+**SLA:** 1–2 weeks; queue-jumps whatever else is in flight.
+
+- [ ] Add MCP tools to `kpa-mcp` server:
+      `kpa_export_to_canvas(deck_path) → html_bundle + asset_manifest`
+      `kpa_import_from_canvas(html_bundle) → deck_path`
+- [ ] HTML ↔ IWA mapping: lossy, documented.
+- [ ] Register KPA's MCP server with Claude Design per their docs.
+- [ ] First-PR open-source story: "first MCP server to extend Claude
+      Design with native Keynote support."
+- [ ] Captain dogfoods round-trip: design in Claude Design → KPA emits
+      `.key` → opens in Keynote.app pixel-acceptable.
+
+**Commit:** `feat(kpa): 6.6 Claude Design MCP bridge (Option 1)`
+
 ### Step 7 — MCP server + skill + critic loop (Days 15–18)
 
 - [ ] MCP server `kpa-mcp` exposing tools:
@@ -114,12 +275,51 @@ Phase 1 is divided into **7 ordered steps**. Each step ends with a commit and a 
 
 ### Phase 1 wrap
 
-- [ ] All 8 success criteria (F1–F8) green
-- [ ] Docs published: Python API (Sphinx), MCP tools README, skill README
-- [ ] PyPI release: `pip install kpa`
-- [ ] GitHub release tagged `v0.1.0`
+- [ ] All success criteria F1–F8 + F2b + F2c + F4b green
+- [ ] Docs published: Python API (Sphinx), MCP tools README, skill README,
+      `docs/authoring.md`, `docs/review_with_keynote.md`
+- [ ] PyPI release: `pip install kpa` — `v0.1` (private fleet)
+- [ ] GitHub release tagged `v0.1.0` (private, not announced)
 - [ ] Apple-Silicon port to HAL (Mac Studio) — codec + schemas + tests parity
-- [ ] PRD v1.1 / DEV_PLAN v2.0 for Phase 2 drafted
+- [ ] **v0.2 public release** after F6–F8 also green; open-source
+      announcement
+- [ ] PRD v1.2 / DEV_PLAN v2.0 for Phase 2 drafted
+
+## Phase 2 (Custom HTML canvas + PPTX bridge)
+
+Per Captain's locked sequence 2026-06-07 07:42 PDT, Phase 2 builds
+**Option 4 first** (custom HTML canvas / Claude-Design-like surface
+inside KPA), then **Option 5** (PPTX import/export). Option 5 likely
+comes online de facto via PPTX import before Option 4 finishes — that's
+fine and complementary.
+
+### Step 8 — Custom HTML canvas (Option 4) — 3–6 months
+
+- [ ] FastAPI / Lit / vanilla-JS canvas at `kpa serve --port 8080`
+- [ ] Two-pane UX: chat on the left, live HTML render on the right
+- [ ] Drag / click / resize interactions ↔ KPA API
+- [ ] Conversational edit pane wired to caller-supplied LLM
+- [ ] Visual-regression: drift from Keynote.app render < 10% per slide
+- [ ] Headless mode for CI: `kpa render --slide N --out s-N.png`
+
+### Step 9 — PPTX bridge (Option 5) — 4–6 weeks parallel
+
+- [ ] `kpa.PPTXReader` — ingest `.pptx`, map to KPA object model
+- [ ] `kpa.PPTXWriter` — emit `.pptx` from KPA object model
+- [ ] Round-trip parity gate: `.key → .pptx → .key` lossless on curated
+      subset (animations excluded per OOXML limits)
+- [ ] Claude Design → PPTX → `.key` workflow documented and dogfooded
+
+### Step 10 — PDF export
+
+- [ ] `kpa.PDFExporter` via Keynote.app headless export (high fidelity)
+- [ ] Pure-Python fallback for non-Mac fleet agents
+
+### Phase 2 wrap
+
+- [ ] PRD v2.0 (`.pptx` + `.pdf` first-class)
+- [ ] PyPI release: `v0.3` (Phase 2 GA)
+- [ ] GitHub release tagged `v0.3.0`
 
 ---
 

@@ -246,12 +246,61 @@ PPTX export today.
 
 ---
 
-## Headline recommendation
+## Headline recommendation — LOCKED by Captain 2026-06-07 07:42 PDT
 
-**Do all of {2 + 3-lite + 5} in Phases 1-2. Watch Anthropic's MCP
-opening; add Option 1 the day it ships.** Skip Option 4 unless the
-legion's review workflow develops needs that none of the others
-satisfy.
+**Build order: Option 2 → Option 3-lite → Option 4 → Option 5.**
+**Insert Option 1 instantly when Anthropic opens Claude Design MCP.**
+
+Phase mapping:
+
+- **Phase 1 (now)** — ship Option 2 (Keynote.app human review,
+  effectively free with F1) and Option 3-lite (`kpa preview` headless
+  PNG thumbnails) alongside F2/F3/F4/F5.
+- **Phase 2** — build Option 4 (custom HTML canvas / Claude-Design-like
+  surface inside KPA itself) to support conversational + physical edits
+  for fleet agents that don't have Keynote.app. **Scotty's flag:** this
+  is a 3–6 month lift; Option 5 (PPTX bridge via Claude Design today)
+  will likely come online de facto when Phase 2 PPTX import ships,
+  which means Captain can be using Claude Design → PPTX → KPA before
+  Option 4 lands. That's fine and complementary.
+- **Phase 3 / parallel** — ship Option 5 (PPTX import / export) as the
+  cross-format bridge.
+- **Anytime trigger** — monitor Anthropic announcements (cron job runs
+  weekly; see DEV_PLAN). The day Claude Design opens its MCP surface to
+  third-party servers, KPA's existing MCP server gets two extra tools
+  (`kpa_export_to_canvas`, `kpa_import_from_canvas`) and we register as
+  the canonical Keynote bridge. Estimated 1–2 weeks of work; queue-jumps
+  whatever else is in flight.
+
+### Captain's reinforced clarification (2026-06-07 07:42 PDT)
+
+Surgical editing has two parallel surfaces, both first-class:
+
+1. **Conversational LLM editing** — any aspect of the presentation,
+   any granularity, expressed in natural language. "Move the title down
+   20%, change the font to Helvetica, swap the hero image on slide 3,
+   make the section divider color match our secondary brand teal,
+   reduce body copy on slides 4–7 by 30 words each." This routes
+   through the same Python API as programmatic edits but via an
+   LLM-driven planner that translates intent → API calls.
+2. **Physical manipulation via the design tool** — direct
+   drag/click/edit in a real UI. Phase 1–2: Keynote.app is the design
+   tool. Phase 2 (in parallel with Phase 2 Option 4): KPA's custom
+   HTML canvas provides drag/click/edit for fleet agents and
+   headless / non-Mac users. Phase 3: if Anthropic Claude Design MCP
+   has opened, that becomes the primary external-facing design tool
+   via the MCP bridge.
+
+Both surfaces share the same underlying API (Step 4) and brand-
+compliance validator. The conversational edit surface is the LLM
+planner layer; the physical surface is whichever GUI is in play.
+
+### Scotty's reinforced recommendation (unchanged)
+
+We never bet KPA's value on Anthropic shipping anything. Option 1 is
+bonus, not foundation. We always have a working path: Keynote.app for
+humans on Macs, KPA's custom canvas for fleet agents, and PPTX bridge
+for external partners.
 
 ### Reinforced by Captain's 2026-06-07 07:33 PDT clarification
 
