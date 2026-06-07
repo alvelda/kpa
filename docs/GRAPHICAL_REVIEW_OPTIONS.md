@@ -253,6 +253,42 @@ opening; add Option 1 the day it ships.** Skip Option 4 unless the
 legion's review workflow develops needs that none of the others
 satisfy.
 
+### Reinforced by Captain's 2026-06-07 07:33 PDT clarification
+
+The requirement is **both** end-to-end generation **and** surgical edits
+("move title down 20%, change font to Helvetica"). That doesn't change
+the option ranking but it sharpens the value:
+
+- **Option 2 (Keynote.app)** becomes the canonical *verification* surface
+  for surgical edits. Captain or HAL applies an edit via the API; opens
+  the result in Keynote.app to visually confirm; if good, ship.
+- **Option 3-lite (`kpa preview`)** becomes the canonical *headless*
+  verification surface for fleet agents that don't have Keynote.app —
+  they apply an edit, render to PNG, diff against the previous version
+  to confirm the edit landed (visual-regression CI).
+- **Option 5 (PPTX bridge via Claude Design)** stays the high-level
+  *generation* path for partners / external users who want a chat UX
+  without writing Python. The surgical-edit power is KPA's API; the
+  generation UX is Claude Design.
+- **Option 1 (Claude Design MCP)** when it opens will let agents apply
+  surgical edits via natural language inside Claude Design itself —
+  Claude Design's canvas calls our MCP `kpa_edit_slide` tool.
+
+The API and DSL design in Step 4 should support natural-language-style
+edit expressions so that all three surfaces (Python, CLI, MCP) can
+express the same edits identically. E.g. all three of:
+
+```
+kpa edit deck.key 'slide[3].title.move(dy="20%")'   # CLI sugar
+deck.slide[3].title.move(dy="20%")                  # Python API
+kpa_edit_slide(path, 3, [{"target": "title",        # MCP / JSON
+                          "op": "move",
+                          "dy": "20%"}])
+```
+
+...should produce **byte-identical output**. That's a Step 4 design
+invariant.
+
 **Why:**
 
 - We never bet KPA's value on Anthropic shipping anything (Option 1 is

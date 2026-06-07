@@ -23,6 +23,25 @@ This is the **first checkpoint where KPA produces value beyond what
 psobot/keynote-parser already provided.** F1 was about losslessness;
 F2 is about authoring.
 
+### Captain's clarifying directive (2026-06-07 07:33 PDT)
+
+Two capability modes are equally first-class deliverables of Step 4 + 5:
+
+1. **End-to-end generation from intent** — Scotty or HAL receives a prompt
+   like "design a Brainworks pitch deck on Project Breathe with 12 slides,
+   the standard intro, and a video hero on slide 5" and KPA produces a
+   brand-compliant native `.key` end-to-end (text + images + video + chart
+   placeholders + master/theme bindings).
+
+2. **Surgical editing of existing decks** — "move the title block down
+   20% and change the font to Helvetica," "swap the chart on slide 7 to a
+   stacked bar," "replace the hero image on slide 3 with this new file."
+   Edits must be deterministic, addressable, and idempotent across re-saves.
+
+Both modes share the same object model and the same brand-compliance
+validator. Neither mode is a stretch goal; both are S4-class success
+criteria.
+
 ## Scope
 
 ### In Scope (Step 4)
@@ -36,49 +55,88 @@ F2 is about authoring.
    loads an existing deck as the substrate; new slides inherit its masters,
    themes, fonts, colors automatically. This is R1 mitigation (PRD §7) —
    we mutate a known-good graph rather than build greenfield from zero.
-4. **Slide kinds (V1 set)** — exactly six:
-   - title slide
-   - section divider
-   - text + image (left-image, right-image variants)
-   - bullet list
-   - quote
-   - closing slide
-5. **CLI:** `kpa author --spec deck.py --template svef.key --out deck.key`
-   (template flag optional; defaults to a bundled minimal template).
-6. **Validators:** every mutation goes through an invariant checker
+4. **Slide-kind taxonomy (growing)** — start by inventorying every distinct
+   slide kind already present in SVEF and NCI. Each becomes a `kpa.SlideKind`
+   entry. New kinds added by harvesting future reference decks; agents and
+   humans both author against the same growing library.
+5. **Surgical-edit address book** (NEW, per Captain 2026-06-07 07:33 PDT) —
+   every authored or imported object exposes a **stable addressable handle**:
+   - `slide[3].title`, `slide[3].body`, `slide[3].image[0]`
+   - or semantic: `slide.where(role="title")`, `slide.where(kind="title")`
+   - all `kpa.Element` objects expose `.move(dx, dy)`, `.resize(w, h)`,
+     `.set_position(x, y, units="pct|pt|px")`, `.set_font(name, size?)`
+   - addresses survive re-save round-trips (deterministic on object IDs).
+6. **Brand-compliance validator** (NEW, per Captain's clarification) —
+   every mutation runs against the active `kpa.Theme`:
+   - non-theme fonts rejected (or warned, configurable)
+   - non-palette colors flagged
+   - off-grid coordinates auto-snapped (or flagged)
+   - master-overriding edits explicitly opt-in via `brand_override=True`
+7. **Media slots** — native image and video embed (PNG/JPEG/TIFF/MP4/MOV)
+   via `Data/` + Asset Manager. The full "generate this image from a prompt"
+   integration with `image_generate`/`video_generate` is wired but the
+   generation call itself is the *caller's* responsibility — KPA accepts a
+   path, embeds the bytes, anchors the archive ref.
+8. **CLI:** `kpa author --spec deck.py --template svef.key --out deck.key`
+   (template flag optional; defaults to a bundled brand-neutral template).
+   Plus surgical sub-commands: `kpa edit deck.key 'slide[3].title.move(dy="20%")'`
+   shell-friendly mutation expressions.
+9. **Validators:** every mutation goes through an invariant checker
    (every `ArchiveRef` resolves to a real archive; every required field
    populated; protobuf round-trips clean).
-7. **F2 test gate:** the 10-slide deck described in PRD §5.1 F2 opens
-   in Keynote 14.5 with no recovery dialog and saves clean on second open.
-8. **CI extension:** add a fresh `tests/test_authoring.py` that produces
-   F2 deck headlessly and runs `kpa validate`.
+10. **F2 test gate:** the 10-slide deck described in PRD §5.1 F2 opens
+    in Keynote 14.5 with no recovery dialog and saves clean on second open.
+11. **F2-edit test gate** (NEW) — take SVEF, apply five surgical edits
+    via the API (move element, change font, swap image, resize image,
+    delete a slide), re-save, re-open in Keynote.app, verify each edit
+    persisted and the deck is recovery-dialog-free.
+12. **CI extension:** add `tests/test_authoring.py` and `tests/test_edits.py`
+    that produce F2 deck + F2-edit deck headlessly and run `kpa validate`.
 
 ### Out of Scope (Step 4 — handled by later steps)
 
 - Charts (Step 5, success criterion F3)
-- Theme harvesting + DesignSpec (Step 6, success criterion F8)
+- Theme harvesting + DesignSpec (Step 6, success criterion F8) — brand-
+  compliance validator in Step 4 consumes the theme passively; the harvest
+  pipeline that produces themes from reference decks ships in Step 6.
 - MCP server / skill / critic (Step 7)
-- Multi-column or complex compound layouts
-- Animations, transitions, builds
-- Editable inline video / audio
-- Pure-greenfield (no template) authoring — that's a Phase 1.5 stretch goal
+- Multi-column or complex compound layouts (deferred to Step 5/6)
+- Animations, transitions, builds (Phase 3+)
+- Generative media calls themselves (Step 4 accepts a file path; the
+  `image_generate` / `video_generate` call lives at the agent layer, not
+  inside KPA core)
+- Pure-greenfield (no template) authoring — Phase 1.5 stretch goal
 - Master-slide editing (we *use* masters; we don't *author* them in Step 4)
 
 ## Success Criteria (Step 4)
 
 - [ ] **S4.1** — `kpa.Deck.from_template("recon/svef.key")` round-trips
        byte-identical (no-op mutation = F1 still passes).
-- [ ] **S4.2** — Authored 10-slide deck (per PRD F2 spec) opens in
-       Keynote 14.5 with zero recovery / warning dialogs.
-- [ ] **S4.3** — Same 10-slide deck saves cleanly on second open
-       (Keynote-side invariants intact).
+- [ ] **S4.2** — Authored 10-slide deck (PRD F2 spec) opens in Keynote 14.5
+       with zero recovery / warning dialogs.
+- [ ] **S4.3** — Same 10-slide deck saves cleanly on second open.
 - [ ] **S4.4** — Re-opening Scotty-authored deck via `kpa.open(...)` reads
        back the same logical structure (slide count, kinds, text content).
 - [ ] **S4.5** — Archive-ID allocator runs against SVEF + NCI without
        collisions; pruning detects orphan archives.
-- [ ] **S4.6** — Public API surface is documented (docstrings + an
-       authoring example in `docs/authoring.md`).
-- [ ] **S4.7** — CI runs S4.2 + S4.4 on every commit on `main`.
+- [ ] **S4.6** — Public API surface is documented (docstrings +
+       `docs/authoring.md`).
+- [ ] **S4.7** — CI runs S4.2 + S4.4 + S4.9 on every commit on `main`.
+- [ ] **S4.8** — Slide-kind taxonomy populated from SVEF + NCI inventory
+       (one entry per unique kind detected) before greenfield authoring
+       begins.
+- [ ] **S4.9** — **Surgical-edit suite:** load SVEF, apply five named
+       edits via the API —
+       (a) move title block by `dy="20%"`,
+       (b) change all body text to Helvetica,
+       (c) swap hero image on slide 3,
+       (d) resize an element to `w="40%"`,
+       (e) delete a slide —
+       save, re-open in Keynote.app, verify every edit persisted, zero
+       recovery dialogs.
+- [ ] **S4.10** — **Brand-compliance validator:** authored decks pass the
+       active theme's font/color/grid checks; intentional overrides
+       require `brand_override=True` and emit a warning to the audit log.
 
 ## Approach
 
@@ -91,7 +149,8 @@ Greenfield authoring requires synthesizing all of that *first*, which
 is a tall hill before we have ground-truth signal. **We instead bootstrap
 by:**
 
-1. Loading a known-good template deck (SVEF) into the KPA object model.
+1. Loading a known-good template deck (SVEF or NCI) into the KPA object
+   model.
 2. Identifying the "slide insertion points" — where slide archives are
    created, registered in the slide tree, linked to the navigator,
    added to the thumbnail index.
@@ -105,6 +164,60 @@ end-to-end before we tackle pure-greenfield.
 
 Pure greenfield (no template) is queued as a Phase 1.5 stretch goal
 after F2 + F3 (charts) are green.
+
+### Coordinate semantics (NEW, per Captain's clarification)
+
+All positional edits accept three unit systems:
+
+- `"pct"` — percentage of the slide canvas (default for human-style edits).
+  `move(dy="20%")` moves the element down 20% of the slide height.
+- `"pt"` — points, native Keynote unit, used internally by IWA archives.
+  `move(dy=144)` moves 144 points (2 inches at 72 DPI).
+- `"px"` — pixels at the canvas's native resolution (mostly for video / image
+  sizing). Auto-converted to points based on `slide.canvas_size`.
+
+The reference frame for `move(dx, dy)` is the element's current position;
+`set_position(x, y)` uses the slide canvas origin (top-left, like macOS
+screen coordinates). All three units round-trip clean through Keynote.app.
+
+### Surgical-edit DSL
+
+For the CLI / shell form:
+
+```
+kpa edit deck.key 'slide[3].title.move(dy="20%")'
+kpa edit deck.key 'slides.where(role="title").body.set_font("Helvetica")'
+kpa edit deck.key 'slide[7].chart[0].swap_data("new.csv")'
+```
+
+Under the hood these are parsed into the same Python API calls; the
+CLI is sugar.
+
+### Generation-from-intent pipeline (orchestrated outside KPA core)
+
+The "design a Brainworks deck on Project Breathe with 12 slides and a
+video hero on slide 5" workflow is a *composition* on top of KPA:
+
+```python
+# Inside an agent (Scotty/HAL/Claude Desktop):
+from kpa import Deck, themes
+deck = Deck.from_template(themes.brainworks_v1)         # KPA
+for slide_spec in plan_deck_with_llm(prompt, n=12):    # agent
+    if slide_spec.needs_hero_image:
+        img = await image_generate(slide_spec.image_prompt)  # tool
+        slide_spec.assets["hero"] = img.path
+    if slide_spec.needs_video:
+        vid = await video_generate(slide_spec.video_prompt)  # tool
+        slide_spec.assets["hero_video"] = vid.path
+    deck.add_slide_from_spec(slide_spec)                # KPA
+deck.brand_compliance.assert_clean()                    # KPA
+deck.save("breathe-pitch.key")                          # KPA
+```
+
+KPA's role: object model + slide construction + brand validation + IWA
+emit. The LLM planning, image/video generation, and orchestration are
+the *caller's* job and live in skills / MCP layer (Step 7) or in HAL's
+research agent. This keeps KPA core deterministic and testable.
 
 ## Open Questions (BLOCKING — need Captain's input)
 

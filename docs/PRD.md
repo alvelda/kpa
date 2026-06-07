@@ -1,12 +1,23 @@
 # PRD — KPA (Keynote Programmatic Authoring)
 
-**Version:** 1.0
+**Version:** 1.1
 **Author:** Scotty (Chief Engineer, iMac)
 **Captain:** Phillip Alvelda
 **Created:** 2026-06-06
-**Approved:** 2026-06-06 by Captain (Telegram)
+**Approved:** 2026-06-06 by Captain (Telegram), v1.1 amendment 2026-06-07
 **License:** MIT (open-source, eventual public release)
-**Status:** APPROVED — dev plan + sync-commit gate next
+**Status:** APPROVED — Step 4 (object-graph authoring) in design
+
+## Changelog
+
+- **v1.1 — 2026-06-07** — Add **surgical editing** as a first-class
+  capability (success criterion F2b), alongside end-to-end generation.
+  Add **brand-asset grovel** (success criterion F4b) for harvesting an
+  asset library from a directory of reference decks. Add explicit
+  **coordinate-semantics contract** (pct / pt / px). Phase-1 release
+  strategy: 0.1 private to fleet after F1–F5, 0.2 public after F6–F8.
+  Graphical-review strategy: see `docs/GRAPHICAL_REVIEW_OPTIONS.md`.
+- **v1.0 — 2026-06-06** — Original PRD.
 
 ---
 
@@ -210,6 +221,23 @@ recovery dialog, save, diff to confirm no semantic drift.
       title slide, section divider, three text+image slides, two
       bullet-list slides, one **native editable chart** slide,
       one quote slide, one closing slide.
+- [ ] **F2b — Surgical edit** (added v1.1): Load an existing `.key`
+      (SVEF or NCI). Apply five named edits via the API:
+      (a) move title block by `dy="20%"`,
+      (b) change all body text to Helvetica,
+      (c) swap hero image on a specified slide,
+      (d) resize an element to `w="40%"`,
+      (e) delete a slide.
+      Save, re-open in Keynote.app. Every edit persisted; zero
+      recovery dialogs; second-save round-trips clean.
+- [ ] **F2c — Generation-from-intent** (added v1.1): An agent
+      (Scotty/HAL/Claude Desktop) takes a natural-language prompt
+      ("Brainworks pitch deck on Project Breathe, 12 slides, video hero
+      on slide 5, standard intro") and produces a brand-compliant
+      `.key` end-to-end. The agent calls KPA's API for slide construction;
+      image/video generation is the agent's responsibility (KPA accepts
+      paths and embeds bytes). The output passes F2 and brand-compliance
+      checks.
 - [ ] **F3 — Chart fidelity:** A KPA-authored chart (bar + line on the
       same axis) opens in Keynote, is editable (data table editable in
       Keynote's chart inspector), and renders identically to the same chart
@@ -218,6 +246,13 @@ recovery dialog, save, diff to confirm no semantic drift.
       complex slice of the SVEF deck (≥ 5 slides) from a Python spec,
       theming against the SVEF master. Captain reviews; passes "looks like
       Brainworks made it" sniff test.
+- [ ] **F4b — Brand-asset library harvest** (added v1.1): `kpa harvest
+      --assets ~/reference-decks/ --out ~/brand-library/` recursively
+      scans a directory of `.key` decks and extracts every embedded image
+      / video / font / chart-template as a brand-asset library entry,
+      deduplicated by content hash, indexed by source deck + slide. The
+      library is consumable by `kpa.Deck.use_brand_assets(library)` and
+      surfaces to the agent as `deck.brand_assets.search("logo")`.
 - [ ] **F5 — Skill integration:** HAL can author a 5-slide brief from a
       natural-language prompt by invoking the `brainworks-deck` skill.
 
