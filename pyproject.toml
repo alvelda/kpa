@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kpa"
+dynamic = ["version"]
+description = "Keynote Programmatic Authoring — open-source Python toolkit for native .key files"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Scotty", email = "alvelda@gmail.com"},
+    {name = "Phillip Alvelda"},
+]
+requires-python = ">=3.10"
+dependencies = [
+    # We use keynote-parser (vendored fork) for the IWA codec.
+    # PyYAML for the unpacked tree format.
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-xdist",
+]
+
+[project.scripts]
+kpa = "kpa.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["kpa*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "kpa._version.__version__"}
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

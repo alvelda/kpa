@@ -1,0 +1,226 @@
+{
+  "svef": {
+    "n_slides": 59,
+    "by_kind_counts": {
+      "text_image": 59
+    },
+    "by_kind": {
+      "text_image": [
+        "Slide-10331352",
+        "Slide-10367615",
+        "Slide-10368689",
+        "Slide-10690519",
+        "Slide-10764631",
+        "Slide-11086701",
+        "Slide-1220953",
+        "Slide-1241698",
+        "Slide-12612714",
+        "Slide-15445258",
+        "Slide-15492620",
+        "Slide-15589769",
+        "Slide-17412341",
+        "Slide-17412350",
+        "Slide-17412351",
+        "Slide-17412359",
+        "Slide-17412360",
+        "Slide-17412361",
+        "Slide-17571228",
+        "Slide-17635827",
+        "Slide-17635830",
+        "Slide-17635834",
+        "Slide-17777201",
+        "Slide-17838740-2",
+        "Slide-17897312",
+        "Slide-17965570",
+        "Slide-18028694",
+        "Slide-18029726",
+        "Slide-18033063",
+        "Slide-18037656",
+        "Slide-18057653",
+        "Slide-18099957",
+        "Slide-18108548",
+        "Slide-18110538",
+        "Slide-18119311",
+        "Slide-18119465",
+        "Slide-18119612",
+        "Slide-18119766",
+        "Slide-18119914",
+        "Slide-18120061",
+        "Slide-18120208",
+        "Slide-18149940",
+        "Slide-18247284",
+        "Slide-18296943",
+        "Slide-18499127",
+        "Slide-18552202",
+        "Slide-18944640",
+        "Slide-19054039",
+        "Slide-19118334",
+        "Slide-1911943",
+        "Slide-19182611",
+        "Slide-19302302",
+        "Slide-2369052",
+        "Slide-2535398",
+        "Slide-3673550",
+        "Slide-4004842",
+        "Slide-4261447",
+        "Slide-4706098",
+        "Slide-806969"
+      ]
+    },
+    "by_master_ref_top10": {
+      "652": [
+        "Slide-10331352",
+        "Slide-10367615",
+        "Slide-10368689",
+        "Slide-10690519",
+        "Slide-10764631",
+        "... +53 more"
+      ],
+      "821": [
+        "Slide-17635827"
+      ]
+    },
+    "placeholder_kinds_observed": {
+      "kKindSlideNumberPlaceholder": 59,
+      "kKindTitlePlaceholder": 59,
+      "kKindBodyPlaceholder": 59
+    }
+  },
+  "nci": {
+    "n_slides": 85,
+    "by_kind_counts": {
+      "bullet_list": 40,
+      "text_image": 45
+    },
+    "by_kind": {
+      "bullet_list": [
+        "Slide-115867",
+        "Slide-1462-2",
+        "Slide-1619-2",
+        "Slide-1698-2",
+        "Slide-1845-2",
+        "Slide-1993-2",
+        "Slide-2064-2",
+        "Slide-2216-2",
+        "Slide-2360-2",
+        "Slide-2572-2",
+        "Slide-2717-2",
+        "Slide-2931-2",
+        "Slide-3080-2",
+        "Slide-3156-2",
+        "Slide-3233-2",
+        "Slide-3303-2",
+        "Slide-3375-2",
+        "Slide-3449-2",
+        "Slide-3526-2",
+        "Slide-3605-2",
+        "Slide-3675-2",
+        "Slide-3751-2",
+        "Slide-382387",
+        "Slide-382388",
+        "Slide-382389",
+        "Slide-382391",
+        "Slide-382393",
+        "Slide-382394",
+        "Slide-382396",
+        "Slide-382397",
+        "Slide-382398",
+        "Slide-382399",
+        "Slide-382400",
+        "Slide-382401",
+        "Slide-3969-2",
+        "Slide-4139-2",
+        "Slide-4211-2",
+        "Slide-4281-2",
+        "Slide-619-2",
+        "Slide-791-2"
+      ],
+      "text_image": [
+        "Slide-1026-2",
+        "Slide-1100-2",
+        "Slide-1173-2",
+        "Slide-1244-2",
+        "Slide-1318-2",
+        "Slide-1391-2",
+        "Slide-1544-2",
+        "Slide-170741",
+        "Slide-170745",
+        "Slide-170746",
+        "Slide-170751",
+        "Slide-1774-2",
+        "Slide-1920-2",
+        "Slide-2144-2",
+        "Slide-2289-2",
+        "Slide-2430-2",
+        "Slide-2501-2",
+        "Slide-2646-2",
+        "Slide-2787-2",
+        "Slide-2860-2",
+        "Slide-3003-2",
+        "Slide-36048",
+        "Slide-36049",
+        "Slide-36051",
+        "Slide-36061",
+        "Slide-36064",
+        "Slide-36070",
+        "Slide-382390",
+        "Slide-382392",
+        "Slide-3825-2",
+        "Slide-3898-2",
+        "Slide-4041-2",
+        "Slide-406817",
+        "Slide-4357-2",
+        "Slide-4476-2",
+        "Slide-4564-2",
+        "Slide-51213",
+        "Slide-697402",
+        "Slide-713-2",
+        "Slide-859651",
+        "Slide-872-2",
+        "Slide-899906",
+        "Slide-952-2",
+        "Slide-97550",
+        "Slide-97883"
+      ]
+    },
+    "by_master_ref_top10": {
+      "495": [
+        "Slide-1026-2",
+        "Slide-1100-2",
+        "Slide-1173-2",
+        "Slide-1244-2",
+        "Slide-1318-2",
+        "... +68 more"
+      ],
+      "36054": [
+        "Slide-170741",
+        "Slide-170745",
+        "Slide-170746",
+        "Slide-170751",
+        "Slide-36070",
+        "... +1 more"
+      ],
+      "36055": [
+        "Slide-36048",
+        "Slide-36049",
+        "Slide-36051",
+        "Slide-36061"
+      ],
+      "115866": [
+        "Slide-115867"
+      ],
+      "36062": [
+        "Slide-36064"
+      ]
+    },
+    "placeholder_kinds_observed": {
+      "kKindTitlePlaceholder": 85,
+      "kKindBodyPlaceholder": 85,
+      "kKindSlideNumberPlaceholder": 85
+    }
+  },
+  "combined_kind_counts": {
+    "text_image": 104,
+    "bullet_list": 40
+  }
+}

@@ -1,0 +1,51 @@
+name: KPA CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test on macOS (Keynote-target host)
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install KPA + keynote-parser
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pyyaml
+          # We rely on python-snappy 0.7.3 (Bug #1 mitigation; DO NOT install snappy)
+          python -m pip install "python-snappy==0.7.3"
+          python -m pip install -e .
+          # keynote-parser is currently installed from vendor/ as editable
+          if [ -d vendor/keynote-parser ]; then
+            python -m pip install -e vendor/keynote-parser
+          fi
+
+      - name: Smoke test
+        run: |
+          kpa --version
+          python -c "import kpa; print('kpa', kpa.__version__)"
+
+      - name: Run unit tests (no reference decks)
+        run: |
+          # Reference decks (recon/*.key) are .gitignored; parity tests skip
+          # when they're missing. Other unit tests still run.
+          pytest tests/ -v
+        continue-on-error: false
+
+      # Note: Full F1 parity (SVEF 628/628 + NCI 325/325) runs locally on the
+      # iMac where the reference decks live. CI runs schema + unit tests only.
