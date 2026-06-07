@@ -143,6 +143,31 @@ Phase 1 is divided into **7 ordered steps**. Each step ends with a commit and a 
 
 ## Status Log
 
+### 2026-06-07 05:30 PDT — Step 3d GREEN — Bug #5 fixed; F1 lossless covers SVEF + NCI 🎉
+
+**Done:**
+- Implemented `RawProtobufPatch` class in `codec.py` (venv + vendor):
+  - Stores raw bytes verbatim from unsupported `ProtobufPatch` entries
+  - `SerializeToString()` returns the raw bytes — buffer round-trip is bit-identical
+  - `to_dict()` emits `{"_kpa_raw_patch": True, "data_base64": "..."}` for YAML serialization
+  - `from_dict()` reconstructs from the YAML marker
+- Changed `ProtobufPatch.FromString` to fall back to `RawProtobufPatch(data)` when either guard hits:
+  - `len(message_info.diff_field_path.path) != 1`, or
+  - `message_info.fields_to_remove` is populated
+- Added marker discrimination in `IWAArchiveSegment.from_dict` to route YAML `_kpa_raw_patch` entries back to `RawProtobufPatch`.
+
+**F1 results after the fix:**
+- **NCI:** 325/325 files byte-identical (96 Index YAMLs + 219 Data + 3 Metadata + 3 previews). 182.2 MB of content, zero differences. Outer ZIP delta: 1,024 bytes / 179 MB (0.0006%).
+- **SVEF regression:** 628/628 identical — zero regression.
+- 2 YAMLs in NCI contain `_kpa_raw_patch` markers (`Slide-1100-2.iwa` and one more) — their bytes round-trip exactly.
+
+**Verdict:** F1 lossless round-trip works for **the median real-world Keynote 14.5 deck**, not just synthetic single-save decks. Phase 1 read-side is now complete.
+
+**Files updated:**
+- `.venv/lib/python3.14/site-packages/keynote_parser/codec.py` (+ vendor copy in sync)
+
+**Next:** Step 4 — object-graph authoring (F2).
+
 ### 2026-06-07 04:55 PDT — Step 3c VALIDATED — F1 confirmed in Keynote.app; NCI uncovers Bug #5 (deferred)
 
 **Done:**

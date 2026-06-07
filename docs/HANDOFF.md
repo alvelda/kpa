@@ -1,6 +1,6 @@
 # KPA — Post-Compaction Handoff
 
-**Last updated:** 2026-06-07 04:55 PDT
+**Last updated:** 2026-06-07 05:30 PDT
 **Purpose:** Snapshot of in-flight build state so the next compacted session can pick up Step 3c / Step 4 without losing the thread.
 **Owner:** Scotty (iMac)
 **Captain:** Phillip Alvelda
@@ -20,8 +20,9 @@
 | Step 2 — Schema harvester (Keynote 14.5 protos) | ✅ DONE | `25d724d` |
 | Step 3a — Decoder smoke test (unpack SVEF.key) | ✅ DONE | `bf91096` |
 | Step 3b — Pack-side round-trip (F1) | ✅ DONE — 628/628 files identical | `0eaf89d` |
-| **Step 3c — Keynote.app open-validation + 2nd deck** | ✅ SVEF confirmed, NCI uncovered Bug #5 | this commit |
-| Step 3d (optional) — RawProtobufPatch passthrough for NCI | 🔜 queued | — |
+| Step 3c — Keynote.app open-validation + 2nd deck | ✅ SVEF confirmed, NCI uncovered Bug #5 | `0411566` |
+| **Step 3d — RawProtobufPatch passthrough for NCI** | ✅ **GREEN — NCI 325/325 + SVEF 628/628** | this commit |
+| Step 4 — Object-graph authoring (F2) | 🔜 queued | — |
 | Step 4-7 | queued | — |
 
 ---
@@ -69,20 +70,24 @@
 - **Fix:** Custom `_AppleZipInfo(ZipInfo)` subclass that overrides `_encodeFilenameFlags()` to always return `(filename.encode("utf-8"), self.flag_bits)` — i.e., UTF-8 bytes with the flag bits untouched (and we never set 0x800 ourselves). `zip_file_sink()` now uses `_AppleZipInfo` for every entry.
 - **PROPAGATED ✅** to `vendor/keynote-parser/keynote_parser/file_utils.py` (2026-06-07).
 
-### Bug #5: keynote-parser ProtobufPatch interpreter NotImplemented for real-world merge patches (NEW, Step 3c)
+### Bug #5: keynote-parser ProtobufPatch interpreter NotImplemented for real-world merge patches (FIXED in Step 3d)
 
 - **Symptom:** Unpacking `recon/nci.key` fails on `Index/Slide-1100-2.iwa` with `ValueError: Failed to deserialize` wrapping the internal trace `diff_read_version: 25 / Object was: b''` from `ProtobufPatch.FromString`.
 - **Root cause:** Real-world Keynote `.key` files that have been edited/saved multiple times contain incremental "merge" archives where `archive_info.should_merge = True`. One of the `message_infos` then encodes a `type=0, length=0` patch with:
   - `diff_field_path.path` empty (0 entries) — not 1 as keynote-parser expects
   - `fields_to_remove` populated — keynote-parser raises NotImplementedError on this unconditionally
   - `diff_read_version` = `[2, 0, 25]` array of supported reader versions
-- **Why it matters for KPA:** Blocks unpack/round-trip of any deck that has merge history (likely the majority of real Keynote decks). SVEF happens to have zero `should_merge=True` patches. NCI has at least one.
-- **Fix path (queued):** introduce a `RawProtobufPatch` subclass that:
-  - Captures the raw bytes of unsupported patches
-  - Records the full `message_info` (including `fields_to_remove`, `diff_field_path`, version arrays)
-  - Round-trips them bit-identically without semantic interpretation
-  - When KPA needs to author *new* patches semantically (Phase 2+), implement the actual interpretation layer
-- **NOT propagated yet** — design decision pending Captain input on whether to do this in Step 3d (immediate) or defer to Step 4.
+- **Fix applied:** New `RawProtobufPatch` class in `codec.py`:
+  - `ProtobufPatch.FromString` now falls back to `RawProtobufPatch(data)` (instead of raising) whenever the patch isn't semantically interpretable.
+  - `RawProtobufPatch.SerializeToString()` returns the raw bytes verbatim — buffer round-trip is bit-identical.
+  - `RawProtobufPatch.to_dict()` emits `{"_kpa_raw_patch": True, "data_base64": "..."}` for YAML serialization.
+  - `IWAArchiveSegment.from_dict` recognizes the marker and reconstructs `RawProtobufPatch` from base64.
+  - When KPA needs to author *new* patches semantically (Phase 2+), implement the actual interpretation layer. For F1 (round-trip), the bytes path is sufficient.
+- **Propagated** to `vendor/keynote-parser/keynote_parser/codec.py`.
+- **F1 results after fix:**
+  - NCI: 325/325 files byte-identical (182.2 MB content). Outer ZIP delta: 1,024 / 179 MB (0.0006%).
+  - SVEF: 628/628 still identical (no regression).
+  - 2 NCI YAMLs contain `_kpa_raw_patch` markers; their bytes round-trip exactly.
 
 ### Bug #4: keynote-parser read-side ZIP filename encoding amplifier (NEW, Step 3b)
 
@@ -143,7 +148,15 @@ If any of those fail → re-apply the snappy fix and/or the mapping patch (see "
 
 ---
 
-## F1 RESULT — Steps 3b + 3c GREEN (2026-06-07)
+## F1 RESULT — Steps 3b + 3c + 3d GREEN (2026-06-07)
+
+### Step 3d confirmation (NCI round-trip)
+- After `RawProtobufPatch` fix in `codec.py`:
+  - NCI unpack: 100 Index YAMLs, 219 Data, 3 Metadata, 3 previews — zero errors.
+  - NCI repack: 178,998,545 bytes (179 MB).
+  - NCI re-unpack → byte-diff: **325/325 files identical** (Data 219/219, Index 100/100, Metadata 3/3, previews 3/3).
+  - SVEF regression: **628/628 still identical**.
+  - Net result: F1 lossless covers the median real-world Keynote 14.5 deck.
 
 ### Step 3c confirmation (Keynote.app open-test)
 - Killed sluggish 17h-uptime Keynote zombie (PID 16249).
@@ -151,7 +164,7 @@ If any of those fail → re-apply the snappy fix and/or the mapping patch (see "
 - **No "file is damaged" / "recover" / "corrupt" / "cannot open" / "invalid format" entries in the unified log over 5 minutes after open.**
 - Two `KNMacDocument` instances active in PID 69578 — our round-tripped file is loaded as a normal document.
 - AppleScript probes time out (`-1712`) because osascript lacks TCC Automation permission for Keynote — cosmetic, not a file problem. Future: grant Automation permission to Terminal/iTerm/osascript in System Settings → Privacy & Security → Automation.
-- NCI second-deck test — unpack failed on `Index/Slide-1100-2.iwa` (see Bug #5 above). NCI deferred to Step 3d/4.
+- NCI second-deck test (initial) — surfaced Bug #5, fixed in Step 3d above.
 
 ## F1 RESULT — Step 3b GREEN (2026-06-07)
 
@@ -198,26 +211,16 @@ print(f"F1 status: orig={len(orig)} re={len(re)} differing={len(diff)} " + ("✅
 PY
 ```
 
-## Next Action: Step 3d (optional) or Step 4
+## Next Action: Step 4 — Object-graph Authoring (F2)
 
-**Captain decides:**
+**Phase 1 is structurally complete.** F1 lossless round-trip covers SVEF + NCI byte-for-byte. Time to move to F2.
 
-### Option A — Step 3d: implement RawProtobufPatch passthrough (covers NCI)
-- Add `RawProtobufPatch` class in `vendor/keynote-parser/keynote_parser/codec.py` that stores raw bytes + full message_info.
-- Route unsupported patches through it in `IWAArchiveSegment.from_buffer`.
-- Round-trip emits identical bytes for the patch.
-- Validate against NCI (628 → ~XYZ files identical).
-- Cost: ~1-2 hours.
-- Value: F1 covers all real Keynote decks, not just SVEF.
-
-### Option B — Move to Step 4 (object-graph authoring + F2 greenfield)
-- F1 stands for SVEF; NCI's Bug #5 is documented but deferred.
-- Begin authoring API (`kpa.Deck`, `kpa.Slide`, etc.) using SVEF as the reference deck.
-- NCI / general-case F1 becomes a Phase 1.5 cleanup, not a blocker.
-- Cost: bigger — 8-12 hours for authoring API + tests.
-- Risk: KPA can't round-trip the median real deck until 3d lands.
-
-**My recommendation:** Step 3d first. The bug is a one-class fix and the value is huge — most real Keynote decks have merge history..
+### Step 4 scope
+- Design `kpa.Deck`, `kpa.Slide`, `kpa.TextBlock`, `kpa.Shape`, etc. — the authoring API.
+- Map authoring objects to the IWA archive graph (use SVEF as the reference deck for round-tripping mutations).
+- Per the PRD: round-trip-with-mutation test. Open a deck, modify text/properties, save, re-open, verify mutation persisted and structure is still valid.
+- Open ID-allocation / reference-table / style-inheritance questions — will surface during design.
+- Plan to write a fresh DEV_PLAN section before code starts..
 
 ---
 
@@ -271,5 +274,5 @@ PY
 
 1. Read top-to-bottom (it's short).
 2. Run the "Reproduction Path" block above — confirms snappy + mapping + zip-encoding patches survived, AND that F1 round-trip is still green.
-3. Resume at "Next Action: Step 3d or Step 4" (Captain to decide).
-4. If anything in section "Five Upstream Bugs Patched In-Place" looks unfamiliar, that's expected — the patches are intentional and load-bearing. Don't undo them. Bugs #1–#4 are propagated to `vendor/keynote-parser/`. Bug #5 is documented but not yet patched (decision pending).
+3. Resume at "Next Action: Step 4" (object-graph authoring + F2 Python API).
+4. If anything in section "Five Upstream Bugs Patched In-Place" looks unfamiliar, that's expected — the patches are intentional and load-bearing. Don't undo them. All five are propagated to `vendor/keynote-parser/`.
