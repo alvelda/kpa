@@ -143,6 +143,31 @@ Phase 1 is divided into **7 ordered steps**. Each step ends with a commit and a 
 
 ## Status Log
 
+### 2026-06-07 04:55 PDT — Step 3c VALIDATED — F1 confirmed in Keynote.app; NCI uncovers Bug #5 (deferred)
+
+**Done:**
+- Killed the sluggish 17h-uptime Keynote zombie; launched fresh `Keynote Creator Studio.app` instance.
+- Opened the round-tripped `recon/round-trip/svef-roundtrip.key` via `open -a`. **Keynote loaded it without errors.**
+- AppleScript probes (`count of documents`, `count of slides`) all returned `-1712 timeout` because TCC Automation permission is not granted for osascript → Keynote. This is a **cosmetic limitation**, not a file problem.
+- Confirmation via the macOS unified log (`log show --predicate 'process == "Keynote"' --last 5m`):
+  - Two `<KNMacDocument: ...>` instances active in PID 69578 (the freshly-opened file + the prior session's deck).
+  - Zero `damage` / `recover` / `corrupt` / `cannot open` / `invalid format` log entries.
+  - The only `error` lines are `TSCKSharingError code=11 (UnsupportedFileProvider)` — that error means "this file is on local disk, not iCloud" — totally expected.
+  - One `libsqlite3 cannot open file at line 51044 of [f0ca7bba1c]` — a path-probing call, not a content error.
+- **✅ F1 acceptance dual-confirmed: byte-for-byte 628/628 structural diff + clean Keynote.app open.**
+- Second-deck attempt (NCI) **uncovered a new bug class** before completing unpack:
+  - NCI has `TSWPSOS.StyleDiffArchive` ProtobufPatches with:
+    - `length=0` (no payload)
+    - `diff_field_path.path` empty (0 entries) — keynote-parser expects exactly 1
+    - `fields_to_remove` populated (paths 2 and 43) — keynote-parser raises NotImplementedError
+    - `diff_read_version: 25` — the version array `[2, 0, 25]` that confused the error message
+  - Root cause: psobot's `ProtobufPatch.FromString` is read-only-NotImplemented for real-world `should_merge=True` patches that encode `fields_to_remove` operations.
+  - This is **read-time semantic interpretation**, not bytes. A raw-bytes passthrough would preserve round-trip.
+
+**Decision:** Document NCI's Bug #5 as a Step 4+ work item. SVEF F1 stands. NCI requires a `RawProtobufPatch` passthrough that preserves bytes-as-bytes for unsupported patch operations — design + implement in Step 4 or as a dedicated Step 3d, depending on Captain's call.
+
+**Pushed:** commit forthcoming.
+
 ### 2026-06-07 04:13 PDT — Step 3b GREEN — F1 lossless round-trip ACHIEVED 🎉
 
 **Done:**
