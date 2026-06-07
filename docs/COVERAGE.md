@@ -1,6 +1,6 @@
 # KPA — Editable Surface Coverage
 
-**Last updated:** 2026-06-07 15:15 PDT (Step 4c.2 GREEN)
+**Last updated:** 2026-06-07 17:30 PDT (Step 4c.4 GREEN)
 
 Per Captain 2026-06-07 08:28 PDT, KPA must address every editable
 element in the `.key` file structure. This is the live coverage tracker
@@ -83,12 +83,26 @@ for the F2d success criterion.
 
 | Capability | Protobuf type(s) | Status | Test | Notes |
 |---|---|---|---|---|
-| `Element.entrance(effect, duration, delay)` | KN.BuildArchive | `unmapped` | — | 4c.4 |
-| `Element.exit(...)` | KN.BuildArchive | `unmapped` | — | 4c.4 |
-| `Element.emphasis(...)` | KN.BuildArchive | `unmapped` | — | 4c.4 |
-| `Element.build_order` | KN.BuildArchive ordering | `unmapped` | — | 4c.4 |
-| `Slide.transition` | transition dict on KN.SlideArchive | `unmapped` | — | 4c.4 |
-| Effect-id catalog | (internal mapping) | `unmapped` | — | 4c.4 |
+| `Build.effect` (entrance/exit/action/content) | KN.BuildArchive.attributes.animationAttributes.effect | **round-trip** | test_animations_4c4.py::test_build_effect_round_trip | 4c.4 |
+| `Build.animation_type` (In/Out/Action/Content) | KN.BuildArchive.attributes.animationAttributes.animationType | **round-trip** | test_animations_4c4.py::test_build_animation_type_round_trip | 4c.4 |
+| `Build.duration` | KN.BuildArchive.attributes.animationAttributes.duration | **round-trip** | test_animations_4c4.py::test_build_duration_delay_round_trip | 4c.4 |
+| `Build.delay` | KN.BuildArchive.attributes.animationAttributes.delay | **round-trip** | test_animations_4c4.py::test_build_duration_delay_round_trip | 4c.4 |
+| `Build.trigger` (on_click/with_previous/after_previous) | KN.BuildArchive.attributes.eventTrigger | **round-trip** | test_animations_4c4.py::test_build_trigger_round_trip | 4c.4 |
+| `Build.text_delivery` (object/paragraph/word/character) | KN.BuildArchive.attributes.customTextDelivery (enum: kTextDeliveryBy*) | **round-trip** (object proven; others best-effort) | test_animations_4c4.py::test_build_text_delivery_round_trip | 4c.4 |
+| `Build.delivery_direction` (forward/reverse) | KN.BuildArchive.attributes.customDeliveryOption (enum: kDeliveryOption*) | **round-trip** | test_animations_4c4.py::test_build_text_delivery_round_trip | 4c.4 |
+| `Build.target_id` (drawable.identifier) | KN.BuildArchive.drawable.identifier | **round-trip** | (implicit — read test + add_build) | 4c.4 |
+| `Slide.builds` | walk slide archives for KN.BuildArchive | **round-trip** | test_animations_4c4.py::test_read_builds_from_real_deck | 4c.4 |
+| `Slide.add_build(target, effect=...)` | create new KN.BuildArchive sibling archive | **round-trip** | test_animations_4c4.py::test_add_build_persists | 4c.4 |
+| `Slide.remove_build(build)` | delete archive from chunks | **round-trip** | test_animations_4c4.py::test_remove_build_persists | 4c.4 |
+| `Slide.find_build(target_id=, effect=)` | linear search helper | `prototyped` | — | 4c.4 |
+| `Transition.effect` | KN.SlideArchive.transition.attributes.animationAttributes.effect | **round-trip** | test_animations_4c4.py::test_transition_effect_round_trip | 4c.4 |
+| `Transition.duration` | KN.SlideArchive.transition.attributes.animationAttributes.duration | **round-trip** | test_animations_4c4.py::test_transition_duration_delay_round_trip | 4c.4 |
+| `Transition.delay` | KN.SlideArchive.transition.attributes.animationAttributes.delay | **round-trip** | test_animations_4c4.py::test_transition_duration_delay_round_trip | 4c.4 |
+| `Transition.direction` | KN.SlideArchive.transition.attributes.animationAttributes.direction | **round-trip** | test_animations_4c4.py::test_transition_direction_round_trip | 4c.4 |
+| `Transition.is_automatic` | KN.SlideArchive.transition.attributes.animationAttributes.isAutomatic | **round-trip** | test_animations_4c4.py::test_transition_is_automatic_round_trip | 4c.4 |
+| Effect alias catalog (`kpa.animations.EFFECTS`) | (internal) — 'fade'/'push'/'fly_in'/'magic_move'/etc. | **round-trip** | (implicit — used in tests) | 4c.4 |
+| `Build.build_order` (multi-build sequencing) | KN.BuildArchive chunk position | `unmapped` | — | 4c.4.2 (z-order semantics same as Slide.reorder) |
+| `Build.copy_to(other_target)` | clone + re-target helper | `unmapped` | — | 4c.4.2 |
 
 ### 4c.5 — Media (video + audio)
 
@@ -144,6 +158,7 @@ for the F2d success criterion.
 | 4a/4b (done) | 6 | 6 | 0 |
 | 4c.1 (text styling) | 20 | 13 | 7 (bullets, list_level, runs, dropcap, first_line_indent test) |
 | 4c.2 (shape visuals) | 12 | 9 | 3 (rotation, flip, gradient/image fills) |
+| 4c.4 (animations + transitions) | 20 | 18 | 2 (build_order, copy_to) |
 | 4c.2 (shape + effects) | 13 | 0 | 13 |
 | 4c.3 (layout) | 7 | 0 | 7 |
 | 4c.4 (animations) | 6 | 0 | 6 |
@@ -160,3 +175,4 @@ for the F2d success criterion.
 | 2026-06-07 08:35 PDT | 4c kickoff | Coverage matrix initialized; Step 4c plan committed (PRD v1.3, DEV_PLAN updated). |
 | 2026-06-07 11:00 PDT | 4c.1 GREEN | Text styling: font/size/bold/italic/underline/color/alignment/line-spacing/space-before/space-after all round-trip green. 9/9 new tests passing; full suite 15/15 in 5m41s. `kpa.color.Color` value type + `kpa.styles.Stylesheet` resolver + `mutate_char_prop`/`mutate_para_prop` write path landed. Deferred to 4c.1.2: bullet/list_level/runs/dropcap (need more design for ListStyleArchive + per-run write semantics). Visual smoke pending. |
 | 2026-06-07 15:15 PDT | 4c.2 GREEN | Shape visual styling: fill_color / stroke (color/width/pattern/clear) / shadow (full param set) / opacity / reflection all round-trip green. 9/9 new tests passing; full suite 24/24 in 9m55s. `_ShapeStyleAccessors` mixin landed on TextBlock + Image. `kpa.styles.resolve_shape_visuals` + `mutate_shape_visual` + `shape_style_id` resolver/writer wired. Engineering finding: visuals live at `super.shapeProperties.{fill,stroke,shadow,opacity,reflection}` of the TSWP.ShapeStyleArchive's TSD base slice; resolver follows the `super` chain leaf-first. Deferred to 4c.2.2: rotation, horizontal/vertical flip (geometry-level, not style-level), gradient/image fills. Visual smoke pending. |
+| 2026-06-07 17:30 PDT | 4c.4 GREEN | Animations + transitions: 18 capabilities round-trip green. Build (effect / animation_type / duration / delay / trigger / text_delivery / delivery_direction / target / read+find) + Slide.add_build / remove_build / builds list + Transition (effect / duration / delay / direction / is_automatic) all GREEN. 13/13 new tests; full suite 37/37 in 14m16s. New module `kpa.animations` (Build, Transition, EFFECTS alias catalog with 25 short names mapping to apple:* full strings). Major engineering finding: keynote-parser's binary encoder requires `TSP.ArchiveInfo` header with `messageInfos: [{type: 8, version: [1,0,5]}]` for new KN.BuildArchive sibling archives — plain `{identifier}` headers fail at pack with `messageInfos` error. add_build now emits the correct envelope. Empirical: only `kTextDeliveryByObject` exists in our sample data; paragraph/word/character variants are best-effort writes (may silently drop). Visual smoke pending. |

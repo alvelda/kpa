@@ -41,6 +41,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 from kpa import coords as _coords
+from kpa.animations import Build, Transition
 from kpa.color import Color, coerce_color, ColorLike
 from kpa.styles import (
     Stylesheet,
@@ -1162,6 +1163,144 @@ class Slide:
     @property
     def slide_id(self) -> Optional[str]:
         return self._slide_id
+
+    # ---- animations (Step 4c.4) ----
+
+    @property
+    def builds(self) -> tuple[Build, ...]:
+        """All on-slide animations (:class:`KN.BuildArchive` instances)."""
+        out: list[Build] = []
+        for aid, arch in self._archive_index.items():
+            for obj in arch.get("objects", []):
+                if obj.get("_pbtype") == "KN.BuildArchive":
+                    out.append(Build(slide=self, archive=obj, archive_id=aid))
+        return tuple(out)
+
+    def find_build(self, *, target_id: Optional[str | int] = None,
+                   effect: Optional[str] = None) -> Optional[Build]:
+        """Return the first :class:`Build` matching the given target shape
+        id or effect."""
+        tid = str(target_id) if target_id is not None else None
+        for b in self.builds:
+            if tid is not None and b.target_id != tid:
+                continue
+            if effect is not None and b.effect != effect:
+                continue
+            return b
+        return None
+
+    def add_build(
+        self,
+        target_shape,
+        *,
+        effect: str,
+        animation_type: str = "In",
+        duration: float = 0.5,
+        delay: float = 0.0,
+        trigger: str = "on_click",
+        text_delivery: Optional[str] = None,
+        delivery_direction: Optional[str] = None,
+    ) -> Build:
+        """Create a new animation on this slide.
+
+        ``target_shape`` may be a :class:`TextBlock`, :class:`Image`, or
+        a raw archive id string/int.
+        """
+        # Resolve target shape -> archive id
+        if hasattr(target_shape, "_archive_id"):
+            tid = str(target_shape._archive_id)
+        elif hasattr(target_shape, "_shape_id"):
+            tid = str(target_shape._shape_id)
+        else:
+            tid = str(target_shape)
+
+        from kpa.animations import (
+            resolve_effect,
+            ANIM_TYPE_IN,
+            TRIGGER_ON_CLICK,
+        )
+
+        # Allocate a new archive id (use a high integer to avoid collisions
+        # with existing ones; in practice Keynote re-numbers on next open
+        # but uniqueness within this YAML is what matters).
+        existing_ids = {int(aid) for aid in self._archive_index.keys() if aid.isdigit()}
+        new_id = max(existing_ids) + 1 if existing_ids else 90000000
+
+        # Build the archive
+        new_archive = {
+            "_pbtype": "KN.BuildArchive",
+            "attributes": {
+                "animationAttributes": {
+                    "animationType": animation_type,
+                    "delay": float(delay),
+                    "duration": float(duration),
+                    "effect": resolve_effect(effect),
+                    "randomNumberSeed": 0,
+                    "writingDirectionIsRtl": False,
+                },
+                "customTextDelivery": None,
+                "customDeliveryOption": None,
+                "eventTrigger": TRIGGER_ON_CLICK,
+            },
+            "chunkIdSeed": 1,
+            "delivery": "All at Once",
+            "drawable": {"identifier": tid},
+            "duration": 0.0,
+        }
+        # keynote-parser's binary encoder needs a TSP.ArchiveInfo header
+        # with the right messageInfos entry. For KN.BuildArchive that is
+        # type=8 (observed empirically from SVEF/NCI samples).
+        wrapper = {
+            "header": {
+                "_pbtype": "TSP.ArchiveInfo",
+                "identifier": str(new_id),
+                "messageInfos": [{"type": 8, "version": [1, 0, 5]}],
+            },
+            "objects": [new_archive],
+        }
+        # Append to the LAST chunk (matches Keynote's grouping)
+        chunks = self._yaml_root.setdefault("chunks", [])
+        if not chunks:
+            chunks.append({"archives": []})
+        chunks[-1].setdefault("archives", []).append(wrapper)
+        # Update local index
+        self._archive_index[str(new_id)] = wrapper
+
+        b = Build(slide=self, archive=new_archive, archive_id=str(new_id))
+        if text_delivery is not None:
+            b.set_text_delivery(text_delivery)
+        if delivery_direction is not None:
+            b.set_delivery_direction(delivery_direction)
+        b.set_trigger(trigger)
+        self._mark_dirty()
+        return b
+
+    def remove_build(self, build: Build) -> bool:
+        """Remove an animation. Returns True on success."""
+        target_id = str(build.archive_id)
+        removed = False
+        for chunk in self._yaml_root.get("chunks", []):
+            archives = chunk.get("archives", [])
+            for i, arch in enumerate(archives):
+                if str(arch.get("header", {}).get("identifier")) == target_id:
+                    del archives[i]
+                    removed = True
+                    break
+            if removed:
+                break
+        if removed:
+            self._archive_index.pop(target_id, None)
+            self._mark_dirty()
+        return removed
+
+    @property
+    def transition(self) -> Optional[Transition]:
+        """The slide's between-slide transition. Always returns a
+        :class:`Transition` (creates an empty one if none configured),
+        so callers can write directly without checking for None."""
+        if self._slide_archive is None:
+            return None
+        return Transition(slide=self, slide_archive=self._slide_archive)
 
     def __repr__(self):
         n_texts = len(self.texts)
