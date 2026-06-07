@@ -217,10 +217,18 @@ sub-step commits pushed to origin (HAL pulls).
 
 ### Step 6.5 — Graphical review hooks (Day 14b, runs alongside Step 6)
 
-**Per Captain's locked sequencing 2026-06-07 07:42 PDT:**
+**Per Captain's locked sequencing (2026-06-07 07:42 PDT, revised 08:01):**
 Option 2 → Option 3-lite → (Option 1 if Anthropic opens MCP) →
-Option 4 → Option 5. Phase 1 ships Options 2 and 3-lite; Phase 2
-builds Option 4 then Option 5; Option 1 inserts on Anthropic announce.
+**Option 5 → Option 4**. Phase 1 ships Options 2 and 3-lite; Phase 2
+builds **Option 5 (PPTX bridge) first**, then Option 4 (custom HTML
+canvas); Option 1 inserts any time on Anthropic announce.
+
+Captain 2026-06-07 08:01 PDT: "Let's move the cross format bridge to
+before our custom live editing canvas work." Rationale: PPTX bridge
+ships ~4–6 weeks vs Option 4's 3–6 months. Ship cross-format value
+first (Claude Design → PPTX → KPA becomes live, Captain can use Claude
+Design today and ingest the result), then build the proprietary live
+canvas as the IP moat.
 
 - [ ] **Option 2 already shipped in Step 4d** (Keynote.app as human
       review surface, documented).
@@ -285,21 +293,38 @@ builds Option 4 then Option 5; Option 1 inserts on Anthropic announce.
       announcement
 - [ ] PRD v1.2 / DEV_PLAN v2.0 for Phase 2 drafted
 
-## Phase 2 (Custom HTML canvas + PPTX bridge)
+## Phase 2 (PPTX bridge → Custom HTML canvas)
 
-Per Captain's locked sequence (2026-06-07 07:42 PDT, **reconfirmed 07:43**):
-Phase 2 builds **Option 4 first** (custom HTML canvas / Claude-Design-like
-surface inside KPA), **then** Option 5 (PPTX import/export). **Option 4
-strictly precedes Option 5** — we don't start PPTX work until Option 4 is
-feature-complete and shipped. Earlier waffling about "Option 5 might land
-de facto first" is retracted.
+Per Captain's revised sequence (2026-06-07 08:01 PDT, supersedes the
+07:42/07:43 ordering): **Option 5 ships first, then Option 4.**
 
-Rationale: Option 4 is the strategic surface (gives Captain + agents a
-live editing canvas that's brand-controlled, our IP, no third-party
-dependency). Option 5 is the interop bridge — valuable but commodity.
-Build the differentiator first.
+  Captain: "Let's move the cross format bridge to before our custom
+  live editing canvas work."
 
-### Step 8 — Custom HTML canvas (Option 4) — 3–6 months
+Rationale (revised): the cross-format bridge gives the legion an
+immediate working path — Claude Design → PPTX export → KPA → native
+`.key` — in 4–6 weeks. Captain can use Claude Design TODAY for visual
+authoring and pipe results through KPA into native Keynote. After that
+bridge proves out and shapes our object-model needs, we build the
+proprietary live HTML canvas (Option 4) as the IP moat with the
+benefit of real-world usage data from the PPTX flow.
+
+### Step 8 — PPTX bridge (Option 5) — 4–6 weeks  **[Phase 2a, first]**
+
+- [ ] `kpa.PPTXReader` — ingest `.pptx`, map to KPA object model
+- [ ] `kpa.PPTXWriter` — emit `.pptx` from KPA object model
+- [ ] Round-trip parity gate: `.key → .pptx → .key` lossless on curated
+      subset (animations excluded per OOXML limits)
+- [ ] Claude Design → PPTX → `.key` workflow documented and dogfooded
+      end-to-end (Captain authors a deck in Claude Design, KPA ingests,
+      exports clean `.key`)
+- [ ] CLI: `kpa convert in.pptx --out out.key` and reverse
+- [ ] Brand validator runs on imported PPTX content (Step 4c validator
+      already shipped; this just exercises it on PPTX-sourced objects)
+- [ ] PyPI release `v0.2` (Phase 2a GA)
+- [ ] GitHub release tagged `v0.2.0`
+
+### Step 9 — Custom HTML canvas (Option 4) — 3–6 months  **[Phase 2b, after Step 8]**
 
 - [ ] FastAPI / Lit / vanilla-JS canvas at `kpa serve --port 8080`
 - [ ] Two-pane UX: chat on the left, live HTML render on the right
@@ -307,14 +332,7 @@ Build the differentiator first.
 - [ ] Conversational edit pane wired to caller-supplied LLM
 - [ ] Visual-regression: drift from Keynote.app render < 10% per slide
 - [ ] Headless mode for CI: `kpa render --slide N --out s-N.png`
-
-### Step 9 — PPTX bridge (Option 5) — 4–6 weeks parallel
-
-- [ ] `kpa.PPTXReader` — ingest `.pptx`, map to KPA object model
-- [ ] `kpa.PPTXWriter` — emit `.pptx` from KPA object model
-- [ ] Round-trip parity gate: `.key → .pptx → .key` lossless on curated
-      subset (animations excluded per OOXML limits)
-- [ ] Claude Design → PPTX → `.key` workflow documented and dogfooded
+- [ ] Object-model refinements informed by PPTX-bridge usage from Step 8
 
 ### Step 10 — PDF export
 
@@ -323,9 +341,13 @@ Build the differentiator first.
 
 ### Phase 2 wrap
 
-- [ ] PRD v2.0 (`.pptx` + `.pdf` first-class)
-- [ ] PyPI release: `v0.3` (Phase 2 GA)
+- [ ] PRD v2.0 (`.pptx` + `.pdf` + custom canvas first-class)
+- [ ] PyPI release: `v0.3` (Phase 2b GA — custom canvas shipped)
 - [ ] GitHub release tagged `v0.3.0`
+
+_Note: `v0.2.0` ships earlier when Step 8 (PPTX bridge) is feature
+complete. Phase 2 has two release tags: `v0.2.0` after Step 8,
+`v0.3.0` after Step 9._
 
 ---
 

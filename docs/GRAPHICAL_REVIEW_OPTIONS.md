@@ -246,27 +246,32 @@ PPTX export today.
 
 ---
 
-## Headline recommendation — LOCKED by Captain 2026-06-07 07:42 PDT (reconfirmed 07:43)
+## Headline recommendation — LOCKED by Captain (2026-06-07 07:42 PDT, revised 08:01)
 
-**Build order: Option 2 → Option 3-lite → Option 4 → Option 5.**
+**Build order: Option 2 → Option 3-lite → Option 5 → Option 4.**
 **Insert Option 1 instantly when Anthropic opens Claude Design MCP.**
 
-**Strict ordering:** Option 4 ships completely before Option 5 starts.
-Earlier hedge about "Option 5 might land de facto first via PPTX import"
-is retracted per Captain 2026-06-07 07:43 PDT.
+**Strict ordering:** Option 5 (PPTX bridge) ships completely before
+Option 4 (custom HTML canvas) starts.
+
+  Captain 2026-06-07 08:01 PDT: "Let's move the cross format bridge to
+  before our custom live editing canvas work."
+
+This supersedes the 07:42/07:43 ordering (which had been Option 4 first).
 
 Phase mapping:
 
 - **Phase 1 (now)** — ship Option 2 (Keynote.app human review,
   effectively free with F1) and Option 3-lite (`kpa preview` headless
   PNG thumbnails) alongside F2/F3/F4/F5.
-- **Phase 2a** — build Option 4 (custom HTML canvas / Claude-Design-like
+- **Phase 2a** — ship Option 5 (PPTX import / export). Cross-format
+  bridge: 4–6 weeks. Unlocks `Claude Design → PPTX → KPA → .key` end
+  to end. Captain can use Claude Design TODAY for visual authoring
+  and pipe the result through KPA into native Keynote. PyPI `v0.2`.
+- **Phase 2b** — build Option 4 (custom HTML canvas / Claude-Design-like
   surface inside KPA itself). Strategic surface, our IP, brand-controlled,
-  no third-party dependency. **Scotty's flag:** 3–6 month lift, but it's
-  the differentiator and Captain has prioritized it.
-- **Phase 2b** — ship Option 5 (PPTX import / export) as the cross-format
-  bridge **after** Option 4 is feature-complete. Commodity interop layer,
-  4–6 weeks once Option 4 is solid.
+  no third-party dependency. **Scotty's flag:** 3–6 month lift; informed
+  by real-world usage data from the Phase 2a PPTX flow. PyPI `v0.3`.
 - **Anytime trigger** — monitor Anthropic announcements (cron job runs
   weekly; see DEV_PLAN). The day Claude Design opens its MCP surface to
   third-party servers, KPA's existing MCP server gets two extra tools
