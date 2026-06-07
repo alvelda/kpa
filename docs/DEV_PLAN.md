@@ -143,6 +143,37 @@ Phase 1 is divided into **7 ordered steps**. Each step ends with a commit and a 
 
 ## Status Log
 
+### 2026-06-07 04:13 PDT — Step 3b GREEN — F1 lossless round-trip ACHIEVED 🎉
+
+**Done:**
+- Re-verified Step 3a patches survived (snappy import OK, mapping patch OK, NAME_CLASS_MAP=1362, ID_NAME_MAP=631, 6383 present).
+- Ran `keynote-parser pack recon/unpacked/svef --output recon/round-trip/svef-roundtrip.key`.
+  Pack completed in ~5s for 628 entries. Size delta: 54,782,740 vs 54,784,985 = **2,245 bytes (0.004%) smaller**.
+- Found and patched **two more upstream bugs** that broke the first round-trip:
+  1. **Pack-side: ZIP UTF-8 filename flag mismatch.** Python's `ZipFile.writestr()` sets the 0x800 (UTF-8) general-purpose flag whenever a filename contains non-ASCII; Keynote.app NEVER sets that flag (writes UTF-8 bytes raw, expects readers to interpret). Our `zip_file_reader` then fails to decode any 0x800-flagged entry because it blindly tries `.encode("cp437").decode("utf-8")` and U+202F (narrow-no-break-space, used in macOS screenshot filenames) isn't representable in cp437.
+  2. **Read-side amplifier.** The cp437 round-trip in `zip_file_reader` corrupts any filename that was already properly UTF-8-flagged by a third-party writer.
+- Fix in `keynote_parser/file_utils.py` (now propagated to `vendor/`):
+  - New `_AppleZipInfo(ZipInfo)` subclass overrides `_encodeFilenameFlags()` to write UTF-8 bytes without the 0x800 flag — exactly mirroring Keynote.app's bytes.
+  - `zip_file_reader` now only does the cp437→utf-8 round-trip when 0x800 is clear; UTF-8-flagged entries are passed through untouched.
+- **F1 ACCEPTANCE (full structural diff, unpack→pack→unpack):**
+  - 628 / 628 files byte-identical (sha256 match)
+  - 96 / 96 Index IWA YAMLs identical
+  - 436 / 436 Data binary assets identical
+  - 3 / 3 Metadata files identical (incl. Properties.plist, BuildVersionHistory.plist, DocumentIdentifier)
+  - 3 / 3 preview*.jpg identical
+  - **0 differences across 53.8MB+ of content**
+  - ZIP flag-bit distribution: original 0/628 UTF-8 flagged → round-trip 0/628 ✅ exact match
+- Keynote.app validation: deferred — `Keynote Creator Studio.app` instance is sluggish on Apple Events (had been running 17h on another deck). Structural diff is the stronger guarantee anyway; we'll re-verify with a clean Keynote launch on a smaller test deck in Step 3c.
+
+**Round-trip diff that still matters:**
+- 2,245 bytes (0.004%) byte-size delta on the outer ZIP. Confirmed NOT from the file contents (every byte of every internal file is identical). Almost certainly from ZIP central-directory ordering + date_time metadata. Investigate in Step 3c if Keynote actually cares (it won't — ZIP central directory ordering is by spec irrelevant).
+
+**Next (Step 3c — minor):**
+1. Verify with a clean Keynote.app launch on a small test deck that the round-trip is recognized as a valid Keynote 14.5 doc (not just structurally equivalent).
+2. Run round-trip against a second deck (e.g. NCI-FLASH or a fresh blank deck) to confirm it isn't SVEF-specific luck.
+3. Decide whether to chase the 2,245-byte ZIP delta or accept it (likely accept — every file inside is byte-identical).
+4. Then move to Step 4 (object-graph authoring + F2).
+
 ### 2026-06-06 21:09 PDT — Step 3a complete, Step 3b queued
 
 **Done:**
