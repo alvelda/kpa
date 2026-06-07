@@ -1,6 +1,6 @@
 # KPA — Editable Surface Coverage
 
-**Last updated:** 2026-06-07 08:35 PDT (Step 4c kickoff)
+**Last updated:** 2026-06-07 11:00 PDT (Step 4c.1 GREEN)
 
 Per Captain 2026-06-07 08:28 PDT, KPA must address every editable
 element in the `.key` file structure. This is the live coverage tracker
@@ -25,21 +25,24 @@ for the F2d success criterion.
 | `TextBlock.text` get/set | TSWP.StorageArchive.text | **round-trip** | test_edits.py::test_text_edit_and_move_round_trip | Step 4b |
 | `TextBlock.position`, `.size` | shape geometry | **round-trip** | test_edits.py | Step 4b |
 | `TextBlock.move(dx, dy)` | shape geometry | **round-trip** | test_edits.py | Step 4b |
-| `TextBlock.font_name` | TSWP.CharacterStyleArchive.fontName | `unmapped` | — | 4c.1 |
-| `TextBlock.font_size` | TSWP.CharacterStyleArchive.fontSize | `unmapped` | — | 4c.1 |
-| `TextBlock.font_weight` | TSWP.CharacterStyleArchive.bold | `unmapped` | — | 4c.1 |
-| `TextBlock.italic` | TSWP.CharacterStyleArchive.italic | `unmapped` | — | 4c.1 |
-| `TextBlock.underline` | TSWP.CharacterStyleArchive.underline | `unmapped` | — | 4c.1 |
-| `TextBlock.color` | TSWP.CharacterStyleArchive.fontColor (RGBA) | `unmapped` | — | 4c.1 |
-| `TextBlock.alignment` | TSWP.ParagraphStyleArchive.alignment | `unmapped` | — | 4c.1 |
-| `TextBlock.line_spacing` | TSWP.ParagraphStyleArchive.lineSpacing | `unmapped` | — | 4c.1 |
-| `TextBlock.first_line_indent` | TSWP.ParagraphStyleArchive.firstLineIndent | `unmapped` | — | 4c.1 |
-| `TextBlock.before_paragraph_spacing` | TSWP.ParagraphStyleArchive.spaceBefore | `unmapped` | — | 4c.1 |
-| `TextBlock.after_paragraph_spacing` | TSWP.ParagraphStyleArchive.spaceAfter | `unmapped` | — | 4c.1 |
-| `TextBlock.bullet_style` | TSWP.ListStyleArchive | `unmapped` | — | 4c.1 |
-| `TextBlock.list_level` | TSWP.ListStyleArchive | `unmapped` | — | 4c.1 |
-| `TextBlock.runs` (per-character) | TSWP.StorageArchive.tableParaStyle + tableCharStyle | `unmapped` | — | 4c.1 |
-| DropCap support | TSWP.DropCapStyleArchive | `unmapped` | — | 4c.1 |
+| `TextBlock.font_name` | TSWP.CharacterStyleArchive.fontName | **round-trip** | test_styling_4c1.py::test_font_name_round_trip | 4c.1 |
+| `TextBlock.font_size` | TSWP.CharacterStyleArchive.fontSize | **round-trip** | test_styling_4c1.py::test_font_size_round_trip | 4c.1 |
+| `TextBlock.bold` (font_weight) | TSWP.CharacterStyleArchive.bold | **round-trip** | test_styling_4c1.py::test_bold_italic_underline_round_trip | 4c.1 |
+| `TextBlock.italic` | TSWP.CharacterStyleArchive.italic | **round-trip** | test_styling_4c1.py::test_bold_italic_underline_round_trip | 4c.1 |
+| `TextBlock.underline` (+ `.underline_style`) | TSWP.CharacterStyleArchive.underline (enum: kNo/kSingle/kDouble/kDotted/kDashed/kWavy) | **round-trip** | test_styling_4c1.py::test_bold_italic_underline_round_trip | 4c.1 |
+| `TextBlock.color` (Color value type) | TSWP.CharacterStyleArchive.fontColor + tsdFill.color (RGBA) | **round-trip** | test_styling_4c1.py::test_color_round_trip | 4c.1 |
+| `TextBlock.alignment` (+ `.alignment_name`) | TSWP.ParagraphStyleArchive.alignment (enum: TATvalue0..4) | **round-trip** | test_styling_4c1.py::test_alignment_round_trip | 4c.1 |
+| `TextBlock.line_spacing` | TSWP.ParagraphStyleArchive.lineSpacing (dict: amount+mode) | **round-trip** | test_styling_4c1.py::test_line_spacing_round_trip | 4c.1 |
+| `TextBlock.first_line_indent` | TSWP.ParagraphStyleArchive.firstLineIndent | `prototyped` | — | 4c.1 (no test yet, API live) |
+| `TextBlock.space_before` | TSWP.ParagraphStyleArchive.spaceBefore | **round-trip** | test_styling_4c1.py::test_paragraph_spacing_round_trip | 4c.1 |
+| `TextBlock.space_after` | TSWP.ParagraphStyleArchive.spaceAfter | **round-trip** | test_styling_4c1.py::test_paragraph_spacing_round_trip | 4c.1 |
+| `TextBlock.style_summary()` (resolves chain) | TSS.StylesheetArchive walker via `kpa.styles.resolve_props` | **round-trip** | test_styling_4c1.py::test_read_styles_from_real_deck | 4c.1 |
+| `TextBlock.bullet_style` | TSWP.ListStyleArchive | `unmapped` | — | 4c.1 (deferred to 4c.1.2) |
+| `TextBlock.list_level` | TSWP.ListStyleArchive | `unmapped` | — | 4c.1 (deferred to 4c.1.2) |
+| `TextBlock.runs` (per-character) | TSWP.StorageArchive.tableParaStyle + tableCharStyle | `unmapped` | — | 4c.1 (deferred to 4c.1.2) |
+| DropCap support | TSWP.DropCapStyleArchive | `unmapped` | — | 4c.1 (deferred to 4c.1.2) |
+| **Color value type** (`kpa.Color`) | RGBA dict serializer | **round-trip** | test_styling_4c1.py::test_color_value_type_smoke | 4c.1 |
+| **Stylesheet resolver** (`kpa.styles.Stylesheet`) | DocumentStylesheet.iwa.yaml + parent-chain walk | **round-trip** | (implicit in all 4c.1 tests) | 4c.1 |
 
 ### 4c.2 — Shape styling + visual effects
 
@@ -134,7 +137,7 @@ for the F2d success criterion.
 | Sub-step | Capabilities | round-trip ✅ | unmapped |
 |---|---|---|---|
 | 4a/4b (done) | 6 | 6 | 0 |
-| 4c.1 (text styling) | 18 | 0 | 18 |
+| 4c.1 (text styling) | 20 | 13 | 7 (bullets, list_level, runs, dropcap, first_line_indent test) |
 | 4c.2 (shape + effects) | 13 | 0 | 13 |
 | 4c.3 (layout) | 7 | 0 | 7 |
 | 4c.4 (animations) | 6 | 0 | 6 |
@@ -149,3 +152,4 @@ for the F2d success criterion.
 | Date | Sub-step | Note |
 |---|---|---|
 | 2026-06-07 08:35 PDT | 4c kickoff | Coverage matrix initialized; Step 4c plan committed (PRD v1.3, DEV_PLAN updated). |
+| 2026-06-07 11:00 PDT | 4c.1 GREEN | Text styling: font/size/bold/italic/underline/color/alignment/line-spacing/space-before/space-after all round-trip green. 9/9 new tests passing; full suite 15/15 in 5m41s. `kpa.color.Color` value type + `kpa.styles.Stylesheet` resolver + `mutate_char_prop`/`mutate_para_prop` write path landed. Deferred to 4c.1.2: bullet/list_level/runs/dropcap (need more design for ListStyleArchive + per-run write semantics). Visual smoke pending. |

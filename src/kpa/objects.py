@@ -41,6 +41,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 from kpa import coords as _coords
+from kpa.color import Color, coerce_color, ColorLike
+from kpa.styles import (
+    Stylesheet,
+    mutate_char_prop,
+    mutate_para_prop,
+    resolve_char_props_for_run,
+    resolve_para_props_for_run,
+)
 
 if TYPE_CHECKING:
     from kpa.deck import Deck
@@ -274,6 +282,366 @@ class TextBlock:
             f"<TextBlock role={self._role} id={self._shape_id} "
             f"text={t_preview!r} geom={self._geometry}>"
         )
+
+    # --- styling (4c.1) ---
+
+    def _stylesheet(self) -> Optional[Stylesheet]:
+        return self._slide._deck.stylesheet
+
+    def _char_props(self) -> dict[str, Any]:
+        """Effective charProperties at character 0."""
+        ss = self._stylesheet()
+        if ss is None or self._storage_archive is None:
+            return {}
+        return resolve_char_props_for_run(ss, self._storage_archive, 0)
+
+    def _para_props(self) -> dict[str, Any]:
+        """Effective paraProperties at character 0."""
+        ss = self._stylesheet()
+        if ss is None or self._storage_archive is None:
+            return {}
+        return resolve_para_props_for_run(ss, self._storage_archive, 0)
+
+    # Character-level properties
+
+    @property
+    def font_name(self) -> Optional[str]:
+        return self._char_props().get("fontName")
+
+    @font_name.setter
+    def font_name(self, value: str):
+        self.set_font_name(value)
+
+    def set_font_name(self, value: str) -> bool:
+        ss = self._stylesheet()
+        if ss is None or self._storage_archive is None:
+            return False
+        ok = mutate_char_prop(
+            ss, self._storage_archive, prop_name="fontName", value=value
+        )
+        if ok:
+            self._slide._mark_dirty()
+        return ok
+
+    @property
+    def font_size(self) -> Optional[float]:
+        v = self._char_props().get("fontSize")
+        return float(v) if v is not None else None
+
+    @font_size.setter
+    def font_size(self, value: float):
+        self.set_font_size(value)
+
+    def set_font_size(self, value: float) -> bool:
+        ss = self._stylesheet()
+        if ss is None or self._storage_archive is None:
+            return False
+        ok = mutate_char_prop(
+            ss, self._storage_archive, prop_name="fontSize", value=float(value)
+        )
+        if ok:
+            self._slide._mark_dirty()
+        return ok
+
+    @property
+    def bold(self) -> bool:
+        return bool(self._char_props().get("bold", False))
+
+    @bold.setter
+    def bold(self, value: bool):
+        self.set_bold(value)
+
+    def set_bold(self, value: bool) -> bool:
+        ss = self._stylesheet()
+        if ss is None or self._storage_archive is None:
+            return False
+        ok = mutate_char_prop(
+            ss, self._storage_archive, prop_name="bold", value=bool(value)
+        )
+        if ok:
+            self._slide._mark_dirty()
+        return ok
+
+    @property
+    def italic(self) -> bool:
+        return bool(self._char_props().get("italic", False))
+
+    @italic.setter
+    def italic(self, value: bool):
+        self.set_italic(value)
+
+    def set_italic(self, value: bool) -> bool:
+        ss = self._stylesheet()
+        if ss is None or self._storage_archive is None:
+            return False
+        ok = mutate_char_prop(
+            ss, self._storage_archive, prop_name="italic", value=bool(value)
+        )
+        if ok:
+            self._slide._mark_dirty()
+        return ok
+
+    # underline is an enum string in YAML: kNoUnderline, kSingleUnderline,
+    # kDoubleUnderline, kDottedUnderline, kDashedUnderline, kWavyUnderline.
+    _UNDERLINE_TO_BOOL = {
+        "kNoUnderline": False,
+        "kSingleUnderline": True,
+        "kDoubleUnderline": True,
+        "kDottedUnderline": True,
+        "kDashedUnderline": True,
+        "kWavyUnderline": True,
+    }
+
+    @property
+    def underline(self) -> bool:
+        v = self._char_props().get("underline")
+        if v is None:
+            return False
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, str):
+            return self._UNDERLINE_TO_BOOL.get(v, False)
+        return bool(v)
+
+    @property
+    def underline_style(self) -> Optional[str]:
+        """Underline as a style name: 'none', 'single', 'double', etc."""
+        v = self._char_props().get("underline")
+        if v is None:
+            return None
+        if isinstance(v, str) and v.startswith("k") and v.endswith("Underline"):
+            return v[1:-len("Underline")].lower()  # 'kSingleUnderline' -> 'single'
+        return None
+
+    @underline.setter
+    def underline(self, value):
+        self.set_underline(value)
+
+    def set_underline(self, value) -> bool:
+        """Set underline. Accepts bool (True=single, False=none) or a style
+        name ('none'/'single'/'double'/'dotted'/'dashed'/'wavy')."""
+        if isinstance(value, bool):
+            enum_val = "kSingleUnderline" if value else "kNoUnderline"
+        elif isinstance(value, str):
+            mapping = {
+                "none": "kNoUnderline",
+                "single": "kSingleUnderline",
+                "double": "kDoubleUnderline",
+                "dotted": "kDottedUnderline",
+                "dashed": "kDashedUnderline",
+                "wavy": "kWavyUnderline",
+            }
+            enum_val = mapping.get(value.lower())
+            if enum_val is None:
+                raise ValueError(
+                    f"Unknown underline style {value!r}; use one of {list(mapping)}"
+                )
+        else:
+            raise TypeError(f"underline must be bool or str, got {type(value)}")
+        ss = self._stylesheet()
+        if ss is None or self._storage_archive is None:
+            return False
+        ok = mutate_char_prop(
+            ss, self._storage_archive, prop_name="underline", value=enum_val
+        )
+        if ok:
+            self._slide._mark_dirty()
+        return ok
+
+    @property
+    def color(self) -> Optional[Color]:
+        cp = self._char_props()
+        fc = cp.get("fontColor")
+        if isinstance(fc, dict):
+            return Color.from_dict(fc)
+        return None
+
+    @color.setter
+    def color(self, value):
+        self.set_color(value)
+
+    def set_color(self, value) -> bool:
+        ss = self._stylesheet()
+        if ss is None or self._storage_archive is None:
+            return False
+        c = coerce_color(value)
+        # Set both fontColor and tsdFill.color (Keynote uses both)
+        ok1 = mutate_char_prop(
+            ss, self._storage_archive, prop_name="fontColor", value=c.as_dict()
+        )
+        ok2 = mutate_char_prop(
+            ss,
+            self._storage_archive,
+            prop_name="tsdFill",
+            value={"color": c.as_dict()},
+        )
+        if ok1 or ok2:
+            self._slide._mark_dirty()
+        return ok1 or ok2
+
+    # Paragraph-level properties
+
+    # Keynote alignment enum: 0=left, 1=right, 2=center, 3=justify, 4=natural
+    # keynote-parser serializes these as 'TATvalueN' strings in YAML.
+    _ALIGNMENT_NAMES = {
+        "left": 0,
+        "right": 1,
+        "center": 2,
+        "justify": 3,
+        "natural": 4,
+    }
+    _ALIGNMENT_INTS_TO_NAMES = {v: k for k, v in _ALIGNMENT_NAMES.items()}
+
+    @staticmethod
+    def _alignment_to_int(value) -> Optional[int]:
+        """Coerce alignment-from-yaml into 0..4.
+
+        Accepts ``int``, ``'TATvalue0'..'TATvalue4'`` (keynote-parser
+        enum string form), or a name like 'left'/'center'.
+        """
+        if value is None:
+            return None
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str):
+            if value.startswith("TATvalue"):
+                try:
+                    return int(value[len("TATvalue"):])
+                except ValueError:
+                    return None
+            if value.lower() in TextBlock._ALIGNMENT_NAMES:
+                return TextBlock._ALIGNMENT_NAMES[value.lower()]
+        return None
+
+    @property
+    def alignment(self) -> Optional[int]:
+        """Paragraph alignment (Keynote enum: 0=left, 1=right, 2=center,
+        3=justify, 4=natural). Returns the raw enum int."""
+        v = self._para_props().get("alignment")
+        return self._alignment_to_int(v)
+
+    @property
+    def alignment_name(self) -> Optional[str]:
+        """Alignment as a name string (left/right/center/justify/natural)."""
+        i = self.alignment
+        if i is None:
+            return None
+        return self._ALIGNMENT_INTS_TO_NAMES.get(i)
+
+    @alignment.setter
+    def alignment(self, value):
+        self.set_alignment(value)
+
+    def set_alignment(self, value) -> bool:
+        """Set alignment by name ('left'/'right'/'center'/'justify'/'natural')
+        or by raw int (0..4)."""
+        if isinstance(value, str):
+            iv = self._ALIGNMENT_NAMES.get(value.lower())
+            if iv is None:
+                raise ValueError(
+                    f"Unknown alignment name {value!r}; "
+                    f"use one of {list(self._ALIGNMENT_NAMES)}"
+                )
+            value = iv
+        ss = self._stylesheet()
+        if ss is None or self._storage_archive is None:
+            return False
+        # keynote-parser expects the enum string form on write to round-trip
+        # cleanly through its codec.
+        ok = mutate_para_prop(
+            ss,
+            self._storage_archive,
+            prop_name="alignment",
+            value=f"TATvalue{int(value)}",
+        )
+        if ok:
+            self._slide._mark_dirty()
+        return ok
+
+    @property
+    def line_spacing(self) -> Optional[float]:
+        ls = self._para_props().get("lineSpacing")
+        if isinstance(ls, dict):
+            # lineSpacing is sometimes a dict {'amount': ..., 'mode': ...}
+            return float(ls.get("amount", 0.0))
+        return float(ls) if ls is not None else None
+
+    def set_line_spacing(self, amount: float, mode: Optional[int] = None) -> bool:
+        """Set line spacing. ``mode`` is Keynote's lineSpacingMode enum."""
+        ss = self._stylesheet()
+        if ss is None or self._storage_archive is None:
+            return False
+        # Read current value to preserve mode if not explicitly set
+        cur = self._para_props().get("lineSpacing")
+        if isinstance(cur, dict):
+            new_val = dict(cur)
+            new_val["amount"] = float(amount)
+            if mode is not None:
+                new_val["mode"] = int(mode)
+        else:
+            new_val = {"amount": float(amount), "mode": int(mode) if mode is not None else 0}
+        ok = mutate_para_prop(
+            ss, self._storage_archive, prop_name="lineSpacing", value=new_val
+        )
+        if ok:
+            self._slide._mark_dirty()
+        return ok
+
+    @property
+    def first_line_indent(self) -> Optional[float]:
+        v = self._para_props().get("firstLineIndent")
+        return float(v) if v is not None else None
+
+    def set_first_line_indent(self, value: float) -> bool:
+        ss = self._stylesheet()
+        if ss is None or self._storage_archive is None:
+            return False
+        ok = mutate_para_prop(
+            ss, self._storage_archive, prop_name="firstLineIndent", value=float(value)
+        )
+        if ok:
+            self._slide._mark_dirty()
+        return ok
+
+    @property
+    def space_before(self) -> Optional[float]:
+        v = self._para_props().get("spaceBefore")
+        return float(v) if v is not None else None
+
+    def set_space_before(self, value: float) -> bool:
+        ss = self._stylesheet()
+        if ss is None or self._storage_archive is None:
+            return False
+        ok = mutate_para_prop(
+            ss, self._storage_archive, prop_name="spaceBefore", value=float(value)
+        )
+        if ok:
+            self._slide._mark_dirty()
+        return ok
+
+    @property
+    def space_after(self) -> Optional[float]:
+        v = self._para_props().get("spaceAfter")
+        return float(v) if v is not None else None
+
+    def set_space_after(self, value: float) -> bool:
+        ss = self._stylesheet()
+        if ss is None or self._storage_archive is None:
+            return False
+        ok = mutate_para_prop(
+            ss, self._storage_archive, prop_name="spaceAfter", value=float(value)
+        )
+        if ok:
+            self._slide._mark_dirty()
+        return ok
+
+    def style_summary(self) -> dict[str, Any]:
+        """All resolved character + paragraph properties at character 0.
+        Useful for inspection / debugging / brand-validator audits."""
+        return {
+            "char": dict(self._char_props()),
+            "para": dict(self._para_props()),
+        }
 
 
 class Image:

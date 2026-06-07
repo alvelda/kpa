@@ -49,6 +49,7 @@ _py_open = builtins.open  # avoid shadowing by module-level ``open`` below
 
 from kpa.coords import DEFAULT_CANVAS
 from kpa.objects import Slide, SlideList, _walk
+from kpa.styles import Stylesheet, load_stylesheet
 
 
 class Deck:
@@ -69,6 +70,8 @@ class Deck:
         self._loaded_slides: dict[int, Slide] = {}
         self._dirty_slides: set[int] = set()
         self._canvas: tuple[float, float] = DEFAULT_CANVAS
+        # 4c.1 internals
+        self._stylesheet: Optional[Stylesheet] = None
 
     # --- construction --------------------------------------------------
 
@@ -187,6 +190,9 @@ class Deck:
             except yaml.YAMLError:
                 pass  # fall back to DEFAULT_CANVAS
 
+        # 4c.1: load the document stylesheet for style resolution
+        self._stylesheet = load_stylesheet(self._unpacked_root)
+
     def save(self, path: str | Path) -> Path:
         """Write the deck back to disk as a ``.key`` file.
 
@@ -213,6 +219,10 @@ class Deck:
                         allow_unicode=True,
                     )
         self._dirty_slides.clear()
+
+        # 4c.1: flush stylesheet if any style mutations were made
+        if self._stylesheet is not None and self._stylesheet.is_dirty:
+            self._stylesheet.flush()
 
         out = Path(path)
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -249,6 +259,13 @@ class Deck:
     def canvas(self) -> tuple[float, float]:
         """Slide canvas dimensions in points: (width, height)."""
         return self._canvas
+
+    @property
+    def stylesheet(self) -> Optional[Stylesheet]:
+        """Document-level stylesheet (TSS.StylesheetArchive + every
+        TSWP.* / TSD.* style archive). Used to resolve effective
+        text/shape styles by ID."""
+        return self._stylesheet
 
     def _load_slide(self, index: int) -> Slide:
         """Internal — load slide at ``index``, caching the parsed YAML root."""
@@ -317,6 +334,7 @@ class Deck:
             self._slide_yaml_paths = []
             self._loaded_slides.clear()
             self._dirty_slides.clear()
+            self._stylesheet = None
 
     def __enter__(self):
         return self
