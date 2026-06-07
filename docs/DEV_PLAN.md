@@ -143,6 +143,19 @@ Phase 1 is divided into **7 ordered steps**. Each step ends with a commit and a 
 
 ## Status Log
 
+### 2026-06-06 21:09 PDT — Step 3a complete, Step 3b queued
+
+**Done:**
+- Unpacked SVEF.key (~221MB) end-to-end: 97 IWA→YAML + 531 media assets = 628 files.
+- Found & fixed two upstream bugs in keynote-parser stack:
+  1. **snappy PyPI namespace collision** — `pip install python-snappy` co-pulls SnapPy topology lib which hijacks `import snappy`. Fix: uninstall `snappy`, keep only `python-snappy`.
+  2. **mapping.py ignores nested protobuf types** — `compute_maps()` only walked top-level messages. Patched with recursive `_walk_messages()` walker (NAME_CLASS_MAP 1196→1362, ID_NAME_MAP 629→631, 100% TSPRegistryMapping coverage).
+- Patch applied to `vendor/keynote-parser/keynote_parser/versions/v14_4/mapping.py` (load-bearing — do not revert).
+- HANDOFF.md written for post-compaction continuity.
+
+**Next (Step 3b):** Pack-side round-trip — `keynote-parser pack` then diff against original to prove F1 (lossless round-trip) hard requirement from PRD.
+
+
 ### 2026-06-06 19:24 PDT — Step 1 in progress
 - PRD v0.2 → v1.0 (Captain approved via Telegram, msg 12029)
 - DEV_PLAN v1.0 written
