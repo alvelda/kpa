@@ -371,6 +371,66 @@ complete. Phase 2 has two release tags: `v0.2.0` after Step 8,
 
 ## Status Log
 
+### 2026-06-07 08:03 PDT — Step 4a GREEN + Phase 2 sequence locked
+
+**Done today (planning + code, in chronological order):**
+
+**Planning churn — Phase 2 sequence converged:**
+1. 07:30 PDT — Captain answered Q1–Q6 (Step 4 blockers): brand-neutral
+   default, both authoring styles, growing slide-kind library seeded
+   from SVEF+NCI, brand-asset grovel feature added, surgical edits +
+   end-to-end generation are both first-class. PRD bumped to v1.1.
+2. 07:33 PDT — Researched Claude Design (Anthropic Labs, launched
+   Apr 17, MCP integration "coming weeks"). Wrote
+   `docs/GRAPHICAL_REVIEW_OPTIONS.md`. Recommended Option 2 → 3-lite
+   → 4 → 5 build order with Option 1 trigger.
+3. 07:42 PDT — Captain locked the order, said "Go." Drafted Step 4
+   sub-steps 4a–4d. Set Anthropic-watch cron
+   `4783f42a-a425-41de-b699-21be3b6a599a` (Mondays 14:00 PDT).
+4. 07:43 PDT — Captain reinforced "Option 4 before Option 5,"
+   retracted my earlier "Option 5 might land de facto first" hedge.
+5. 08:01 PDT — Captain **reversed** the Phase 2 order: "Let's move
+   the cross format bridge to before our custom live editing canvas
+   work." Phase 2a = Option 5 (PPTX bridge, ~4–6 weeks, PyPI v0.2);
+   Phase 2b = Option 4 (custom HTML canvas, 3–6 months, PyPI v0.3).
+6. 08:03 PDT — Captain: "Commit and push the latest prd and dev plan
+   and status docs that capture all this and go build it."
+7. PRD bumped to v1.2 capturing the Phase 2 reversal.
+
+**Step 4a code GREEN (commit 213bfd2):**
+- `src/kpa/` package skeleton: `Deck.from_template()` / `Deck.save()` /
+  `Deck.summary()` / `kpa.open()`.
+- `kpa` CLI: `unpack`, `pack`, `info`, `--version`.
+- `pyproject.toml` editable install works (`pip install -e .`).
+- `.github/workflows/ci.yml` on macOS runner.
+- `tests/test_parity.py` — S4.1 (no-op parity) GREEN:
+  - SVEF 628/628 byte-identical
+  - NCI  325/325 byte-identical
+  - Deck summary smoke test passes
+- `scripts/slide_kind_inventory.py` + `docs/SLIDE_KINDS.{md,json}`:
+  taxonomy seeded from real decks per Captain Q3.
+  - **Finding:** SVEF/NCI each use essentially one master for ~85% of
+    slides; visual diversity lives in slide-internal layout, not master
+    clustering. Step 4b will clone individual slide exemplars per
+    visual kind rather than masters.
+
+**Commits pushed today (newest first):**
+  - 068d302 — Phase 2 reversed (Option 5 first, then Option 4)
+  - 5f9bc88 — Phase 2 'de facto Option 5 first' hedge retracted (superseded)
+  - 213bfd2 — Step 4a foundation + S4.1 parity GREEN
+  - 2177874 — Step 4 sub-steps 4a–4d + Captain's Phase 2 ordering locked
+  - 947a8fa — PRD v1.1 (surgical edits + asset grovel first-class)
+  - e0c78c4 — GRAPHICAL_REVIEW_OPTIONS research
+  - 989db55 — STEP4_BRIEF planning doc
+
+**Next:** Step 4b — mutation API (`kpa.TextBlock`, `kpa.Image`),
+address book (`deck.slide[i].title.move(...)`, etc.), and first three
+slide kinds (title, text_image, bullet_list) authorable end-to-end.
+F2-edit mid-checkpoint: move + font swap + image swap land cleanly
+on a real `.key`, openable in Keynote.app.
+
+---
+
 ### 2026-06-07 05:30 PDT — Step 3d GREEN — Bug #5 fixed; F1 lossless covers SVEF + NCI 🎉
 
 **Done:**

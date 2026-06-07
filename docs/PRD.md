@@ -1,22 +1,33 @@
 # PRD — KPA (Keynote Programmatic Authoring)
 
-**Version:** 1.1
+**Version:** 1.2
 **Author:** Scotty (Chief Engineer, iMac)
 **Captain:** Phillip Alvelda
 **Created:** 2026-06-06
-**Approved:** 2026-06-06 by Captain (Telegram), v1.1 amendment 2026-06-07
+**Approved:** 2026-06-06 by Captain (Telegram), v1.1 amendment 2026-06-07 07:33 PDT, v1.2 amendment 2026-06-07 08:01 PDT
 **License:** MIT (open-source, eventual public release)
-**Status:** APPROVED — Step 4 (object-graph authoring) in design
+**Status:** APPROVED — Step 4a foundation GREEN (commit 213bfd2); Step 4b mutation API next
 
 ## Changelog
 
-- **v1.1 — 2026-06-07** — Add **surgical editing** as a first-class
-  capability (success criterion F2b), alongside end-to-end generation.
-  Add **brand-asset grovel** (success criterion F4b) for harvesting an
-  asset library from a directory of reference decks. Add explicit
-  **coordinate-semantics contract** (pct / pt / px). Phase-1 release
-  strategy: 0.1 private to fleet after F1–F5, 0.2 public after F6–F8.
-  Graphical-review strategy: see `docs/GRAPHICAL_REVIEW_OPTIONS.md`.
+- **v1.2 — 2026-06-07 08:01 PDT** — **Phase 2 sequence reversed.**
+  Per Captain: "Let's move the cross format bridge to before our
+  custom live editing canvas work." Phase 2a = Option 5 (PPTX bridge,
+  4–6 weeks, PyPI `v0.2`). Phase 2b = Option 4 (custom HTML canvas,
+  3–6 months, PyPI `v0.3`). Rationale: ship cross-format value first
+  (Claude Design → PPTX → KPA → `.key` becomes usable today), build the
+  proprietary canvas as IP moat after, informed by real usage from
+  Phase 2a. Option 1 (Claude Design MCP) still queue-jumps any time
+  the Anthropic-watch cron fires; complementary to Option 5, not
+  redundant.
+- **v1.1 — 2026-06-07 07:33 PDT** — Add **surgical editing** as a
+  first-class capability (success criterion F2b), alongside end-to-end
+  generation. Add **brand-asset grovel** (success criterion F4b) for
+  harvesting an asset library from a directory of reference decks.
+  Add explicit **coordinate-semantics contract** (pct / pt / px).
+  Phase-1 release strategy: 0.1 private to fleet after F1–F5, 0.2
+  public after F6–F8. Graphical-review strategy: see
+  `docs/GRAPHICAL_REVIEW_OPTIONS.md`.
 - **v1.0 — 2026-06-06** — Original PRD.
 
 ---
