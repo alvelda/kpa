@@ -1,6 +1,6 @@
 # KPA — Post-Compaction Handoff
 
-**Last updated:** 2026-06-08 09:25 PDT
+**Last updated:** 2026-06-08 11:00 PDT
 **Purpose:** Snapshot for the next session (likely launched in Telegram HQ → "Keynote" topic) to pick up KPA work without losing the thread.
 **Owner:** Scotty (iMac)
 **Captain:** Phillip Alvelda
@@ -10,9 +10,9 @@
 
 ## TL;DR for the next session
 
-> Phase 1 Step 4 is **72% complete (72/100 round-trip capabilities)**.
-> Seven sub-steps GREEN, three pending. **68/68 tests passing** in ~22 min.
-> Working tree clean on `main` @ `d716633`. **Recommended next:** Step 4c.3 layout/structure (z-order, groups).
+> Phase 1 Step 4 is **84% complete (84/100 round-trip capabilities)**.
+> Eight sub-steps GREEN, two pending. **80/80 tests passing** in ~28 min.
+> Working tree clean on `main`. **Recommended next:** Step 4c.6 tables + charts (densest schema; fresh session).
 > All planning artifacts are in `docs/` and committed.
 
 ---
@@ -27,20 +27,20 @@
 | 4b mutation | ✅ GREEN | 3 | TextBlock/Image/Slide proxies, set_text/move/set_position |
 | 4c.1 text styling | ✅ GREEN | 9 | font/color/alignment/spacing on character + paragraph styles |
 | 4c.2 shape visuals | ✅ GREEN | 9 | fill/stroke/shadow/opacity/reflection |
-| **4c.3 layout/structure** | ⏳ pending | — | z-order, groups, alignment (NEXT) |
+| **4c.3 layout/structure** | ✅ GREEN | 12 | z-order ops (bring_to_front/send_to_back/forward/backward/set_z_order) + Group read proxy |
 | 4c.4 animations + transitions | ✅ GREEN | 13 | Build, Transition, EFFECTS alias catalog, add/remove_build |
 | 4c.5 media | ✅ GREEN | 13 | Movie, Soundtrack, LiveVideoSource; Document.iwa.yaml mutations |
-| 4c.6 tables + charts | ⏳ pending | — | densest schema, planned for fresh session |
+| **4c.6 tables + charts** | ⏳ pending | — | densest schema, recommended fresh session (NEXT) |
 | 4c.7 universal escape hatch | ✅ GREEN | 18 | raw_get/set/keys/dump/pbtype on all 8 proxies |
 | 4c.8 slide-kind library + validator + asset grovel | ⏳ pending | — | closes Phase 1 |
 
-**Phase 1 capability bar: 72/100 round-trip.** Total test count: **68 passing**, runtime ~22 min.
+**Phase 1 capability bar: 84/100 round-trip.** Total test count: **80 passing**, runtime ~28 min.
 
-### Last 4 commits (all on `origin/main`)
+### Last 4 commits (latest on `origin/main` first)
+- `<pending>` feat(kpa): 4c.3 layout/structure GREEN — z-order + Group proxy (2026-06-08 11:00)
+- `a02bffc` docs(kpa): refresh HANDOFF.md + DEV_PLAN.md for session handoff (2026-06-08 09:25)
 - `d716633` feat(kpa): 4c.7 universal escape hatch GREEN — agents never blocked (2026-06-08 09:15)
 - `61b0d39` feat(kpa): 4c.5 media GREEN — 17 capabilities (movies + soundtrack + live video) (2026-06-07 22:30)
-- `0275ef2` feat(kpa): 4c.4 animations + transitions GREEN — 18 capabilities (2026-06-07 17:30)
-- `3b177b0` feat(kpa): 4c.2 shape styling GREEN — fill/stroke/shadow/opacity/reflection (2026-06-07 15:15)
 
 ---
 
@@ -55,25 +55,27 @@ git log --oneline -6           # last commits should match the table above
 ls docs/                       # PRD.md, DEV_PLAN.md, COVERAGE.md, HANDOFF.md
 ```
 
-### Run the full test suite (optional, ~22 min)
+### Run the full test suite (optional, ~28 min)
 
 ```bash
 source .venv/bin/activate
-pytest tests/                  # expect 68 passed
+pytest tests/                  # expect 80 passed
 ```
 
-### To start Step 4c.3 layout/structure
+### To start Step 4c.6 tables + charts (NEXT recommended)
 
 ```bash
-# Recon: drawablesZOrder is right there on KN.SlideArchive — escape hatch
-# proven access via slide.raw_get('drawablesZOrder') in test_escape_4c7.py.
 source .venv/bin/activate
+# Recon table archives in SVEF/NCI
 python3 -c "
 import kpa
 deck = kpa.Deck.from_template('recon/svef.key')
-s = deck.slide[0]
-print(s.raw_keys())                          # see all KN.SlideArchive keys
-print(s.raw_get('drawablesZOrder'))          # the actual z-order list
+for i, s in enumerate(deck.slide):
+    for aid, arch in s._archive_index.items():
+        for obj in arch.get('objects', []):
+            pb = obj.get('_pbtype','')
+            if pb.startswith('TST.') or pb.startswith('TSCH.'):
+                print(f'slide {i}: {pb} (id={aid})')
 "
 ```
 
@@ -90,6 +92,7 @@ src/kpa/
 ├── styles.py            # Stylesheet, resolve_*/mutate_* for char/para/shape
 ├── animations.py        # Build, Transition, EFFECTS alias catalog (4c.4)
 ├── media.py             # Movie, Soundtrack, LiveVideoSource (4c.5)
+├── layout.py            # Group, z-order helpers (4c.3)
 └── escape.py            # RawArchiveMixin, deep_get/deep_set, path parser (4c.7)
 
 tests/
@@ -97,6 +100,7 @@ tests/
 ├── test_edits.py             # 4b (3)
 ├── test_styling_4c1.py       # 4c.1 (9)
 ├── test_shape_styling_4c2.py # 4c.2 (9)
+├── test_layout_4c3.py        # 4c.3 (12)
 ├── test_animations_4c4.py    # 4c.4 (13)
 ├── test_media_4c5.py         # 4c.5 (13)
 └── test_escape_4c7.py        # 4c.7 (18)
@@ -186,30 +190,28 @@ Path syntax: dot-separated keys + `[N]` indices. Examples:
 
 ## Recommended Next Sub-Steps (in priority order)
 
-### 4c.3 layout/structure (NEXT)
-- `Slide.bring_to_front(shape)` / `send_to_back` / `send_forward` / `send_backward`
-- `Slide.drawables_z_order` (read the order list)
-- `Slide.groups` (read group structure — KN.GroupArchive?)
-- Maybe `Group.add` / `Group.ungroup` (deferred to 4c.3.2 if heavy)
-- ~30-45 min with escape hatch infra in place.
-
-### 4c.6 tables + charts (FRESH SESSION recommended)
+### 4c.6 tables + charts (NEXT — FRESH SESSION recommended)
 - Densest schema in Keynote (TST.* + TSCH.*)
 - Table: read cell text, mutate cell text, table dimensions
 - Chart: read chart kind, style id, series data; mutate styles via pass-through
-- Probably 1-2 sessions. Recommend starting after 4c.3 lands.
+- Probably 1-2 sessions. The escape hatch + Document.iwa plumbing from 4c.5 give us a known landing pattern for whatever lives deck-level.
 
 ### 4c.8 slide-kind library + validator + asset grovel (CLOSES PHASE 1)
 - Canonical slide kinds: `title`, `section_divider`, `content`, `quote`, `closing`, etc.
 - Brand validator: enforce a YAML rules file against a deck (font names, color palette, etc.)
 - Asset grovel: extract all embedded media to a folder (already accessible via Movie.media_data_id refs)
 
+### 4c.3.2 (optional, deferred) — Group writes + guides + notes
+- `Slide.group([a, b, c])` / `Group.ungroup()` — needs a sample deck with real groups to validate. Add when one lands in `recon/`.
+- `Slide.guides` (TSD.GuideStorageArchive)
+- `Slide.notes` (KN.NoteArchive)
+
 ---
 
 ## Working Tree State
 
 ```
-On main @ d716633
+On main @ <commit pending push>
 Clean working tree.
 Untracked: recon/ (sample decks — gitignored).
 All work pushed to origin and hal mirror.
@@ -234,3 +236,7 @@ All work pushed to origin and hal mirror.
 - `docs/COVERAGE.md` — Capability tracker (every field's status)
 - `docs/EDITABLE_SURFACE.md` — Schema taxonomy
 - `memory/2026-06-07.md` — Memory flush from the long session (planning lean-up + 4c.1/4c.2/4c.4/4c.5)
+- 4c.3 lessons (this session):
+  - `drawablesZOrder` is a simple list of `{identifier: <id>}` on `KN.SlideArchive`. Placeholders (title/body) typically are NOT in z-order; only ordinary text shapes and images are. Z-order is back-to-front: index 0 renders first, last index renders on top.
+  - SVEF + NCI contain ZERO `KN.GroupArchive` instances. Group write support deferred until we have a sample deck that uses groups. Read proxy validated with an in-memory synthetic group archive.
+  - Captain's clarifying directive: `set_z_order(partial)` should put the partial list at the back and keep unlisted shapes in their original relative order at the front. (Implemented this way; one test covers it.)

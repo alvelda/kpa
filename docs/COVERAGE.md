@@ -1,6 +1,6 @@
 # KPA — Editable Surface Coverage
 
-**Last updated:** 2026-06-08 09:15 PDT (Step 4c.7 GREEN)
+**Last updated:** 2026-06-08 11:00 PDT (Step 4c.3 GREEN)
 
 Per Captain 2026-06-07 08:28 PDT, KPA must address every editable
 element in the `.key` file structure. This is the live coverage tracker
@@ -71,13 +71,20 @@ for the F2d success criterion.
 
 | Capability | Protobuf type(s) | Status | Test | Notes |
 |---|---|---|---|---|
-| `Slide.bring_to_front(elem)` | KN.SlideArchive.drawablesZOrder | `unmapped` | — | 4c.3 |
-| `Slide.send_to_back(elem)` | KN.SlideArchive.drawablesZOrder | `unmapped` | — | 4c.3 |
-| `Slide.reorder([...])` | KN.SlideArchive.drawablesZOrder | `unmapped` | — | 4c.3 |
-| `Slide.group([a, b, c])` | TSD.GroupArchive | `unmapped` | — | 4c.3 |
-| `Group.ungroup()` | TSD.GroupArchive | `unmapped` | — | 4c.3 |
-| `Slide.guides` (add/remove/list) | TSD.GuideStorageArchive | `unmapped` | — | 4c.3 |
-| `Slide.notes` get/set | KN.NoteArchive | `unmapped` | — | 4c.3 |
+| `Slide.drawables_z_order` (read) | KN.SlideArchive.drawablesZOrder | **round-trip** | test_layout_4c3.py::test_drawables_z_order_returns_tuple_of_ids | 4c.3 |
+| `Slide.z_index(shape)` | KN.SlideArchive.drawablesZOrder | **round-trip** | test_layout_4c3.py::test_z_index_lookup | 4c.3 |
+| `Slide.bring_to_front(shape)` | KN.SlideArchive.drawablesZOrder | **round-trip** | test_layout_4c3.py::test_bring_to_front_in_memory + test_zorder_round_trip | 4c.3 |
+| `Slide.send_to_back(shape)` | KN.SlideArchive.drawablesZOrder | **round-trip** | test_layout_4c3.py::test_send_to_back_in_memory | 4c.3 |
+| `Slide.send_forward(shape)` | KN.SlideArchive.drawablesZOrder | **round-trip** | test_layout_4c3.py::test_send_forward_backward_in_memory | 4c.3 |
+| `Slide.send_backward(shape)` | KN.SlideArchive.drawablesZOrder | **round-trip** | test_layout_4c3.py::test_send_forward_backward_in_memory | 4c.3 |
+| `Slide.set_z_order([...])` | KN.SlideArchive.drawablesZOrder | **round-trip** | test_layout_4c3.py::test_set_z_order_explicit + test_set_z_order_round_trip | 4c.3 |
+| Z-order accepts proxy objects (TextBlock/Image) | resolver | **round-trip** | test_layout_4c3.py::test_zorder_accepts_proxy_objects | 4c.3 |
+| `Slide.groups` (read) | KN.GroupArchive | **prototyped** | test_layout_4c3.py::test_groups_empty_on_svef + test_group_proxy_read_when_present | 4c.3 (no group present in samples; synthetic fixture used) |
+| `Group.children_ids` / `Group.children` | KN.GroupArchive.contents | **prototyped** | test_layout_4c3.py::test_group_proxy_read_when_present | 4c.3 |
+| `Group` escape hatch (raw_get/set/keys/dump/pbtype) | KN.GroupArchive | **prototyped** | test_layout_4c3.py::test_group_proxy_read_when_present | via RawArchiveMixin |
+| `Slide.group([a, b, c])` / `Group.ungroup()` | KN.GroupArchive | `unmapped` | — | 4c.3.2 (deferred; needs sample deck with groups) |
+| `Slide.guides` (add/remove/list) | TSD.GuideStorageArchive | `unmapped` | — | 4c.3.2 |
+| `Slide.notes` get/set | KN.NoteArchive | `unmapped` | — | 4c.3.2 |
 
 ### 4c.4 — Animations + transitions
 

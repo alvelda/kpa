@@ -6,9 +6,12 @@ reference-decks/*.key
 reference-decks/*.pdf
 reference-decks/*.pptx
 
-# Unpacked reference deck trees
+# Unpacked reference deck trees + temporary round-trip artifacts
 recon/unpacked/
+recon/round-trip/
+recon/*/
 reference-decks/unpacked/
+reference-decks/*/
 
 # Generated Python bindings (re-harvest from Keynote.app)
 src/kpa/_pb/*/

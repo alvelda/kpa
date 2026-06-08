@@ -44,6 +44,7 @@ from kpa import coords as _coords
 from kpa.animations import Build, Transition
 from kpa.color import Color, coerce_color, ColorLike
 from kpa.escape import RawArchiveMixin
+from kpa.layout import Group, _resolve_shape_id, _zorder_index, _zorder_list
 from kpa.media import Movie
 from kpa.styles import (
     Stylesheet,
@@ -1342,6 +1343,130 @@ class Slide(RawArchiveMixin):
         if self._slide_archive is None:
             return None
         return Transition(slide=self, slide_archive=self._slide_archive)
+
+    # ---- layout / z-order (Step 4c.3) ----
+
+    @property
+    def drawables_z_order(self) -> tuple[str, ...]:
+        """Archive ids of drawables in z-order, back-to-front.
+
+        First entry renders at the back, last entry renders on top.
+        Mirrors ``KN.SlideArchive.drawablesZOrder``.
+        """
+        if self._slide_archive is None:
+            return ()
+        zo = self._slide_archive.get("drawablesZOrder") or []
+        out: list[str] = []
+        for item in zo:
+            if isinstance(item, dict) and "identifier" in item:
+                out.append(str(item["identifier"]))
+        return tuple(out)
+
+    def z_index(self, shape) -> int:
+        """Position of ``shape`` in the z-order (0 = back, -1 = absent)."""
+        if self._slide_archive is None:
+            return -1
+        target = _resolve_shape_id(shape)
+        return _zorder_index(_zorder_list(self._slide_archive), target)
+
+    def _move_in_z(self, shape, *, to: Optional[int] = None,
+                   relative: int = 0) -> bool:
+        """Internal: reposition ``shape`` in the z-order.
+
+        If ``to`` is given, move to that absolute index.
+        Otherwise move ``relative`` positions (positive = forward/up,
+        negative = backward/down). Clamps to valid bounds.
+        Returns True if the order actually changed.
+        """
+        if self._slide_archive is None:
+            return False
+        zo = _zorder_list(self._slide_archive)
+        target = _resolve_shape_id(shape)
+        cur = _zorder_index(zo, target)
+        if cur < 0:
+            return False
+        if to is None:
+            new = cur + relative
+        else:
+            new = to
+        # Clamp
+        if new < 0:
+            new = 0
+        if new >= len(zo):
+            new = len(zo) - 1
+        if new == cur:
+            return False
+        item = zo.pop(cur)
+        zo.insert(new, item)
+        self._mark_dirty()
+        return True
+
+    def bring_to_front(self, shape) -> bool:
+        """Move ``shape`` to the top of the z-order (renders last)."""
+        if self._slide_archive is None:
+            return False
+        zo = _zorder_list(self._slide_archive)
+        return self._move_in_z(shape, to=len(zo) - 1)
+
+    def send_to_back(self, shape) -> bool:
+        """Move ``shape`` to the bottom of the z-order (renders first)."""
+        return self._move_in_z(shape, to=0)
+
+    def send_forward(self, shape) -> bool:
+        """Move ``shape`` one step forward in z-order."""
+        return self._move_in_z(shape, relative=+1)
+
+    def send_backward(self, shape) -> bool:
+        """Move ``shape`` one step backward in z-order."""
+        return self._move_in_z(shape, relative=-1)
+
+    def set_z_order(self, shapes) -> bool:
+        """Replace the z-order with an explicit list of shapes/ids.
+
+        Shapes not in the input that exist in the current z-order are
+        appended to the back (front of the rendered list) in their
+        current relative order, so passing a partial list reorders the
+        listed shapes and leaves the rest stable.
+
+        Returns True if the order changed.
+        """
+        if self._slide_archive is None:
+            return False
+        zo = _zorder_list(self._slide_archive)
+        wanted = [_resolve_shape_id(s) for s in shapes]
+        present_ids = [
+            str(item["identifier"])
+            for item in zo
+            if isinstance(item, dict) and "identifier" in item
+        ]
+        # Filter wanted to only known ids; preserve any others at the tail
+        known_wanted = [w for w in wanted if w in present_ids]
+        remaining = [pid for pid in present_ids if pid not in known_wanted]
+        new_ids = known_wanted + remaining
+        if new_ids == present_ids:
+            return False
+        self._slide_archive["drawablesZOrder"] = [
+            {"identifier": pid} for pid in new_ids
+        ]
+        self._mark_dirty()
+        return True
+
+    @property
+    def groups(self) -> tuple[Group, ...]:
+        """All :class:`KN.GroupArchive` instances on this slide.
+
+        Empty tuple when no groups are present (the common case for
+        text/image decks like SVEF and NCI). When groups exist, use
+        the escape hatch on the returned :class:`Group` proxies for
+        advanced mutation in Step 4c.3.
+        """
+        out: list[Group] = []
+        for aid, arch in self._archive_index.items():
+            for obj in arch.get("objects", []):
+                if obj.get("_pbtype") == "KN.GroupArchive":
+                    out.append(Group(slide=self, archive=obj, archive_id=aid))
+                    break
+        return tuple(out)
 
     def __repr__(self):
         n_texts = len(self.texts)

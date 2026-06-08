@@ -726,3 +726,20 @@ on a real `.key`, openable in Keynote.app.
 - `docs/HANDOFF.md` refreshed with current state, capability table, engineering findings, escape-hatch quick reference, and recommended next steps.
 - Sub-steps remaining for Phase 1 close: **4c.3 layout/structure (NEXT)**, 4c.6 tables/charts, 4c.8 slide-kind library + validator + asset grovel.
 - Ready to resume in fresh session (incl. Telegram HQ "Keynote" topic) — boot checklist in HANDOFF.md.
+
+### 2026-06-08 11:00 PDT — Step 4c.3 GREEN
+
+- **4c.3 layout/structure GREEN** (12 tests) — z-order operations + Group read proxy.
+- New module `src/kpa/layout.py`: `Group` (RawArchiveMixin), `_resolve_shape_id`, `_zorder_list`, `_zorder_index`.
+- New `Slide` accessors:
+  - `drawables_z_order` (read tuple of ids, back-to-front)
+  - `z_index(shape)` (lookup, -1 if absent)
+  - `bring_to_front(shape)` / `send_to_back(shape)` / `send_forward(shape)` / `send_backward(shape)`
+  - `set_z_order([shapes])` (explicit replace; unlisted ids preserved at the back in original order)
+  - `groups` (tuple of `Group`; empty when no `KN.GroupArchive` present, the SVEF/NCI default)
+- All ops accept proxies (TextBlock/Image), raw int/str ids, or `{identifier: <id>}` dicts via `_resolve_shape_id`.
+- Round-trip proven: z-order mutations persist through save/open on SVEF.
+- Group write API (`Slide.group([...])`, `Group.ungroup()`) deferred to 4c.3.2 (no sample deck with groups yet).
+- Full suite: **80/80 passing** in 27m34s.
+- Phase 1 Step 4 capability bar: **84/100 round-trip (84%)** (was 72%; +12 layout capabilities).
+- Remaining for Phase 1 close: **4c.6 tables + charts**, **4c.8 slide-kind library + validator + asset grovel**, optional **4c.3.2** group write + guides + notes.
