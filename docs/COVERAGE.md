@@ -1,6 +1,6 @@
 # KPA — Editable Surface Coverage
 
-**Last updated:** 2026-06-07 17:30 PDT (Step 4c.4 GREEN)
+**Last updated:** 2026-06-07 22:30 PDT (Step 4c.5 GREEN)
 
 Per Captain 2026-06-07 08:28 PDT, KPA must address every editable
 element in the `.key` file structure. This is the live coverage tracker
@@ -108,16 +108,27 @@ for the F2d success criterion.
 
 | Capability | Protobuf type(s) | Status | Test | Notes |
 |---|---|---|---|---|
-| `Video.loop` | TSD.MovieArchive | `unmapped` | — | 4c.5 |
-| `Video.autoplay` | TSD.MovieArchive | `unmapped` | — | 4c.5 |
-| `Video.start_time`, `.end_time` (trim) | TSD.MovieArchive | `unmapped` | — | 4c.5 |
-| `Video.audio_level` | TSD.MediaStyleArchive | `unmapped` | — | 4c.5 |
-| `Video.poster_frame_time` | TSD.MovieArchive | `unmapped` | — | 4c.5 |
-| `Video.show_controls` | TSD.MovieArchive | `unmapped` | — | 4c.5 |
-| `Video.replace(asset_path)` | TSD.MovieArchive + Data/ swap | `unmapped` | — | 4c.5 |
-| `Deck.soundtrack` | KN.Soundtrack | `unmapped` | — | 4c.5 |
-| `Slide.motion_background` | KN.MotionBackgroundStyleArchive | `unmapped` | — | 4c.5 |
-| `LiveVideo` proxy (read) | KN.LiveVideoSource | `unmapped` | — | 4c.5 |
+| `Movie.loop` (None/Repeat/BackAndForth + aliases off/loop/bounce) | TSD.MovieArchive.loopOption | **round-trip** | test_media_4c5.py::test_movie_loop_round_trip + test_movie_loop_off_round_trip | 4c.5 |
+| `Movie.plays_across_slides` (multi-slide playback) | TSD.MovieArchive.playsAcrossSlides | **round-trip** | test_media_4c5.py::test_movie_plays_across_slides_round_trip | 4c.5 |
+| `Movie.start_time` / `.end_time` (trim) | TSD.MovieArchive.startTime/endTime | **round-trip** | test_media_4c5.py::test_movie_trim_round_trip | 4c.5 |
+| `Movie.set_trim(start, end)` convenience | (composite) | **round-trip** | test_media_4c5.py::test_movie_trim_round_trip | 4c.5 |
+| `Movie.duration` (computed) | end_time - start_time | **round-trip** | test_media_4c5.py::test_movie_trim_round_trip | 4c.5 |
+| `Movie.poster_time` | TSD.MovieArchive.posterTime | **round-trip** | test_media_4c5.py::test_movie_trim_round_trip | 4c.5 |
+| `Movie.volume` | TSD.MovieArchive.volume | **round-trip** | test_media_4c5.py::test_movie_volume_round_trip | 4c.5 |
+| `Movie.mute()` / `.unmute()` / `.is_muted` | (volume helpers) | **round-trip** | test_media_4c5.py::test_movie_mute_round_trip | 4c.5 |
+| `Movie.is_audio_only` (treat-as-audio) | TSD.MovieArchive.audioOnly | **round-trip** | test_media_4c5.py::test_movie_audio_only_round_trip | 4c.5 |
+| `Movie.media_data_id` / `.poster_image_id` / `.style_id` (refs) | TSD.MovieArchive.{movieData,posterImageData,style}.identifier | **round-trip** (read-only) | test_media_4c5.py::test_read_movie_from_real_deck | 4c.5 |
+| `Movie.streaming` / `.natural_size` (read-only) | TSD.MovieArchive.{streaming,naturalSize} | **round-trip** (read-only) | test_media_4c5.py::test_read_movie_from_real_deck | 4c.5 |
+| `Slide.movies` | walk slide archives for TSD.MovieArchive | **round-trip** | test_media_4c5.py::test_read_movie_from_real_deck | 4c.5 |
+| `Deck.soundtrack` | KN.Soundtrack (Document.iwa) | **round-trip** | test_media_4c5.py::test_read_soundtrack | 4c.5 |
+| `Soundtrack.mode` (PlayOnce/Loop/Off + aliases once/loop/off) | KN.Soundtrack.mode | **round-trip** | test_media_4c5.py::test_soundtrack_mode_round_trip | 4c.5 |
+| `Soundtrack.volume` | KN.Soundtrack.volume | **round-trip** | test_media_4c5.py::test_soundtrack_volume_round_trip | 4c.5 |
+| `Deck.live_video_sources` | KN.LiveVideoSource (Document.iwa) | **round-trip** | test_media_4c5.py::test_read_live_video_sources | 4c.5 |
+| `LiveVideoSource.name` / `.is_default` / `.set_default()` | KN.LiveVideoSource.{name,isDefaultSource} | **round-trip** | test_media_4c5.py::test_live_video_source_name_round_trip | 4c.5 |
+| `Video.audio_level` (per-track) | TSD.MediaStyleArchive | `unmapped` | — | 4c.5.2 |
+| `Video.autoplay` / `.show_controls` (proto field unknown) | TSD.MovieArchive (TBD) | `unmapped` | — | 4c.5.2 |
+| `Movie.replace(asset_path)` (swap blob in Data/) | TSD.MovieArchive + Data/ blob | `unmapped` | — | 4c.5.2 |
+| `Slide.motion_background` | KN.MotionBackgroundStyleArchive | `unmapped` | — | 4c.5.2 |
 
 ### 4c.6 — Charts + tables (pass-through styling)
 
@@ -159,6 +170,7 @@ for the F2d success criterion.
 | 4c.1 (text styling) | 20 | 13 | 7 (bullets, list_level, runs, dropcap, first_line_indent test) |
 | 4c.2 (shape visuals) | 12 | 9 | 3 (rotation, flip, gradient/image fills) |
 | 4c.4 (animations + transitions) | 20 | 18 | 2 (build_order, copy_to) |
+| 4c.5 (media: movies + soundtrack + live video) | 21 | 17 | 4 (per-track audio level, autoplay/controls, blob replace, motion background) |
 | 4c.2 (shape + effects) | 13 | 0 | 13 |
 | 4c.3 (layout) | 7 | 0 | 7 |
 | 4c.4 (animations) | 6 | 0 | 6 |
@@ -176,3 +188,4 @@ for the F2d success criterion.
 | 2026-06-07 11:00 PDT | 4c.1 GREEN | Text styling: font/size/bold/italic/underline/color/alignment/line-spacing/space-before/space-after all round-trip green. 9/9 new tests passing; full suite 15/15 in 5m41s. `kpa.color.Color` value type + `kpa.styles.Stylesheet` resolver + `mutate_char_prop`/`mutate_para_prop` write path landed. Deferred to 4c.1.2: bullet/list_level/runs/dropcap (need more design for ListStyleArchive + per-run write semantics). Visual smoke pending. |
 | 2026-06-07 15:15 PDT | 4c.2 GREEN | Shape visual styling: fill_color / stroke (color/width/pattern/clear) / shadow (full param set) / opacity / reflection all round-trip green. 9/9 new tests passing; full suite 24/24 in 9m55s. `_ShapeStyleAccessors` mixin landed on TextBlock + Image. `kpa.styles.resolve_shape_visuals` + `mutate_shape_visual` + `shape_style_id` resolver/writer wired. Engineering finding: visuals live at `super.shapeProperties.{fill,stroke,shadow,opacity,reflection}` of the TSWP.ShapeStyleArchive's TSD base slice; resolver follows the `super` chain leaf-first. Deferred to 4c.2.2: rotation, horizontal/vertical flip (geometry-level, not style-level), gradient/image fills. Visual smoke pending. |
 | 2026-06-07 17:30 PDT | 4c.4 GREEN | Animations + transitions: 18 capabilities round-trip green. Build (effect / animation_type / duration / delay / trigger / text_delivery / delivery_direction / target / read+find) + Slide.add_build / remove_build / builds list + Transition (effect / duration / delay / direction / is_automatic) all GREEN. 13/13 new tests; full suite 37/37 in 14m16s. New module `kpa.animations` (Build, Transition, EFFECTS alias catalog with 25 short names mapping to apple:* full strings). Major engineering finding: keynote-parser's binary encoder requires `TSP.ArchiveInfo` header with `messageInfos: [{type: 8, version: [1,0,5]}]` for new KN.BuildArchive sibling archives — plain `{identifier}` headers fail at pack with `messageInfos` error. add_build now emits the correct envelope. Empirical: only `kTextDeliveryByObject` exists in our sample data; paragraph/word/character variants are best-effort writes (may silently drop). Visual smoke pending. |
+| 2026-06-07 22:30 PDT | 4c.5 GREEN | Media (video + audio): 17 capabilities round-trip green. Movie (loop with 3 modes + aliases, plays_across_slides, start/end_time trim, set_trim convenience, duration, poster_time, volume + mute/unmute, audio_only, ref ids, streaming, natural_size) + Slide.movies + Soundtrack (mode with 3 modes + aliases, volume) + Deck.soundtrack + Deck.live_video_sources + LiveVideoSource (name, is_default). 13/13 new tests; full suite 50/50 in 18m49s. New module `kpa.media` (Movie, Soundtrack, LiveVideoSource). New Deck infra: `_document_root()` lazy loader, `_mark_document_dirty()`, `_find_document_archive(s)` helpers for Document.iwa.yaml mutations — first deck-level archive writes in kpa, soundtrack and live-video flush through save(). Major proven find: encoder DOES accept `kKNSoundtrackModeLoop` even though only `kKNSoundtrackModePlayOnce` is in source data — proto schema enum survives round-trip (validates the "unknown enums fall through" pattern as a real capability, not a wishlist). Loop aliases (off/loop/bounce/pingpong) + soundtrack mode aliases (once/loop/off) make the API friendly. Deferred to 4c.5.2: per-track audio_level (TSD.MediaStyleArchive), autoplay/show_controls (proto field not yet identified), Movie.replace(asset_path) blob swap, Slide.motion_background. Visual smoke pending. |

@@ -43,6 +43,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Optional
 from kpa import coords as _coords
 from kpa.animations import Build, Transition
 from kpa.color import Color, coerce_color, ColorLike
+from kpa.media import Movie
 from kpa.styles import (
     Stylesheet,
     mutate_char_prop,
@@ -1163,6 +1164,20 @@ class Slide:
     @property
     def slide_id(self) -> Optional[str]:
         return self._slide_id
+
+    # ---- media (Step 4c.5) ----
+
+    @property
+    def movies(self) -> tuple[Movie, ...]:
+        """All :class:`Movie` instances on this slide (TSD.MovieArchive).
+        """
+        out: list[Movie] = []
+        for aid, arch in self._archive_index.items():
+            for obj in arch.get("objects", []):
+                if obj.get("_pbtype") == "TSD.MovieArchive":
+                    out.append(Movie(slide=self, archive=obj, archive_id=aid))
+                    break
+        return tuple(out)
 
     # ---- animations (Step 4c.4) ----
 

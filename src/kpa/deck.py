@@ -193,6 +193,69 @@ class Deck:
         # 4c.1: load the document stylesheet for style resolution
         self._stylesheet = load_stylesheet(self._unpacked_root)
 
+    # ---------- Document.iwa lazy access (4c.5) ----------
+
+    def _document_root(self) -> dict:
+        """Load and cache the parsed Document.iwa.yaml tree (the deck-
+        level archive: KN.ShowArchive, KN.Soundtrack, theme refs, etc.).
+
+        Lazy: only read on first access; subsequent mutations live on
+        ``self._document_yaml_root`` and are flushed on save().
+        """
+        if getattr(self, "_document_yaml_root", None) is not None:
+            return self._document_yaml_root
+        doc_path = self._unpacked_root / "Index" / "Document.iwa.yaml"
+        with _py_open(doc_path) as fh:
+            self._document_yaml_root = yaml.safe_load(fh)
+        self._document_yaml_path = doc_path
+        return self._document_yaml_root
+
+    def _mark_document_dirty(self):
+        """Tell save() the deck-level Document.iwa.yaml needs to be
+        flushed back to disk."""
+        self._document_dirty = True
+
+    def _find_document_archive(self, pbtype: str) -> Optional[dict]:
+        """Walk Document.iwa for the first archive matching a pbtype."""
+        doc = self._document_root()
+        for chunk in doc.get("chunks", []):
+            for arch in chunk.get("archives", []):
+                for obj in arch.get("objects", []):
+                    if obj.get("_pbtype") == pbtype:
+                        return obj
+        return None
+
+    def _find_document_archives(self, pbtype: str) -> list[dict]:
+        """Walk Document.iwa for all archives matching a pbtype."""
+        doc = self._document_root()
+        out: list[dict] = []
+        for chunk in doc.get("chunks", []):
+            for arch in chunk.get("archives", []):
+                for obj in arch.get("objects", []):
+                    if obj.get("_pbtype") == pbtype:
+                        out.append(obj)
+        return out
+
+    # ---------- soundtrack + live video (4c.5) ----------
+
+    @property
+    def soundtrack(self):
+        """The deck-level :class:`Soundtrack` (one per deck). Returns
+        ``None`` if the deck has no soundtrack archive (rare — Keynote
+        creates one even when disabled)."""
+        from kpa.media import Soundtrack
+        arch = self._find_document_archive("KN.Soundtrack")
+        if arch is None:
+            return None
+        return Soundtrack(deck=self, archive=arch)
+
+    @property
+    def live_video_sources(self) -> tuple:
+        """All :class:`LiveVideoSource` entries (camera feed configs)."""
+        from kpa.media import LiveVideoSource
+        archs = self._find_document_archives("KN.LiveVideoSource")
+        return tuple(LiveVideoSource(deck=self, archive=a) for a in archs)
+
     def save(self, path: str | Path) -> Path:
         """Write the deck back to disk as a ``.key`` file.
 
@@ -223,6 +286,20 @@ class Deck:
         # 4c.1: flush stylesheet if any style mutations were made
         if self._stylesheet is not None and self._stylesheet.is_dirty:
             self._stylesheet.flush()
+
+        # 4c.5: flush Document.iwa.yaml if soundtrack/live-video edits
+        if getattr(self, "_document_dirty", False) and getattr(
+            self, "_document_yaml_root", None
+        ) is not None:
+            with _py_open(self._document_yaml_path, "w") as f:
+                yaml.dump(
+                    self._document_yaml_root,
+                    f,
+                    default_flow_style=False,
+                    sort_keys=False,
+                    allow_unicode=True,
+                )
+            self._document_dirty = False
 
         out = Path(path)
         out.parent.mkdir(parents=True, exist_ok=True)
