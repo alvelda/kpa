@@ -40,6 +40,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional
 
+from kpa.escape import RawArchiveMixin
+
 if TYPE_CHECKING:
     from kpa.objects import Slide
 
@@ -102,7 +104,7 @@ def resolve_soundtrack_mode(value: str) -> str:
 # ============================================================
 
 
-class Movie:
+class Movie(RawArchiveMixin):
     """Wraps a single :class:`TSD.MovieArchive`.
 
     Exposes read+write access to all the movie-specific properties.
@@ -116,6 +118,14 @@ class Movie:
         self._slide = slide
         self._archive = archive
         self._archive_id = archive_id
+
+    # ---- RawArchiveMixin hooks ----
+
+    def _raw_archive_root(self) -> dict:
+        return self._archive
+
+    def _raw_mark_dirty(self) -> None:
+        self._slide._mark_dirty()
 
     @property
     def archive_id(self) -> str:
@@ -330,13 +340,21 @@ class Movie:
 # ============================================================
 
 
-class Soundtrack:
+class Soundtrack(RawArchiveMixin):
     """Wraps the deck-level :class:`KN.Soundtrack` (lives in
     Document.iwa). One per deck."""
 
     def __init__(self, *, deck, archive: dict[str, Any]):
         self._deck = deck
         self._archive = archive
+
+    # ---- RawArchiveMixin hooks ----
+
+    def _raw_archive_root(self) -> dict:
+        return self._archive
+
+    def _raw_mark_dirty(self) -> None:
+        self._deck._mark_document_dirty()
 
     @property
     def mode(self) -> Optional[str]:
@@ -401,7 +419,7 @@ class Soundtrack:
 # ============================================================
 
 
-class LiveVideoSource:
+class LiveVideoSource(RawArchiveMixin):
     """Wraps a single :class:`KN.LiveVideoSource` config entry. These
     define camera feeds that can be embedded as drawables. Lives in
     Document.iwa under KN.LiveVideoSourceCollection.
@@ -413,6 +431,14 @@ class LiveVideoSource:
     def __init__(self, *, deck, archive: dict[str, Any]):
         self._deck = deck
         self._archive = archive
+
+    # ---- RawArchiveMixin hooks ----
+
+    def _raw_archive_root(self) -> dict:
+        return self._archive
+
+    def _raw_mark_dirty(self) -> None:
+        self._deck._mark_document_dirty()
 
     @property
     def name(self) -> Optional[str]:

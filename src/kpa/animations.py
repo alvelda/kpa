@@ -44,6 +44,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional
 
+from kpa.escape import RawArchiveMixin
+
 if TYPE_CHECKING:
     from kpa.objects import Slide
 
@@ -122,7 +124,7 @@ def resolve_effect(name: str) -> str:
 # ============================================================
 
 
-class Build:
+class Build(RawArchiveMixin):
     """Wraps a single :class:`KN.BuildArchive`. Provides read+write
     access to effect / duration / delay / target / animation type /
     text delivery / trigger."""
@@ -131,6 +133,14 @@ class Build:
         self._slide = slide
         self._archive = archive
         self._archive_id = archive_id
+
+    # ---- RawArchiveMixin hooks ----
+
+    def _raw_archive_root(self) -> dict:
+        return self._archive
+
+    def _raw_mark_dirty(self) -> None:
+        self._slide._mark_dirty()
 
     # ---- internals ----
 
@@ -358,7 +368,7 @@ class Build:
 # ============================================================
 
 
-class Transition:
+class Transition(RawArchiveMixin):
     """Wraps a slide's transition (``KN.SlideArchive.transition``).
 
     Transition fields mirror an animation's ``animationAttributes``
@@ -369,6 +379,19 @@ class Transition:
     def __init__(self, *, slide: "Slide", slide_archive: dict[str, Any]):
         self._slide = slide
         self._slide_archive = slide_archive
+
+    # ---- RawArchiveMixin hooks: rooted at the transition subtree ----
+
+    def _raw_archive_root(self) -> dict:
+        """Returns the slide's ``transition`` dict (creates if missing)."""
+        t = self._slide_archive.setdefault("transition", {})
+        if not isinstance(t, dict):
+            t = {}
+            self._slide_archive["transition"] = t
+        return t
+
+    def _raw_mark_dirty(self) -> None:
+        self._slide._mark_dirty()
 
     def _trans_root(self) -> dict[str, Any]:
         t = self._slide_archive.setdefault("transition", {})

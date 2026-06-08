@@ -43,6 +43,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Optional
 from kpa import coords as _coords
 from kpa.animations import Build, Transition
 from kpa.color import Color, coerce_color, ColorLike
+from kpa.escape import RawArchiveMixin
 from kpa.media import Movie
 from kpa.styles import (
     Stylesheet,
@@ -445,7 +446,7 @@ class _Geometry:
         )
 
 
-class TextBlock(_ShapeStyleAccessors):
+class TextBlock(_ShapeStyleAccessors, RawArchiveMixin):
     """A text-bearing shape on a slide.
 
     Wraps a ShapeInfoArchive or PlaceholderArchive plus the
@@ -473,6 +474,14 @@ class TextBlock(_ShapeStyleAccessors):
         self._storage_id = storage_id
         self._geometry = geometry
         self._role = role
+
+    # --- RawArchiveMixin hooks ---
+
+    def _raw_archive_root(self) -> dict:
+        return self._shape_archive
+
+    def _raw_mark_dirty(self) -> None:
+        self._slide._mark_dirty()
 
     # --- text ---
 
@@ -916,7 +925,7 @@ class TextBlock(_ShapeStyleAccessors):
         }
 
 
-class Image(_ShapeStyleAccessors):
+class Image(_ShapeStyleAccessors, RawArchiveMixin):
     """An image on a slide. Step 4b: position/size mutation only."""
 
     def __init__(
@@ -936,6 +945,14 @@ class Image(_ShapeStyleAccessors):
     def _shape_archive(self) -> dict[str, Any]:
         """Alias for :attr:`_archive` required by :class:`_ShapeStyleAccessors`."""
         return self._archive
+
+    # --- RawArchiveMixin hooks ---
+
+    def _raw_archive_root(self) -> dict:
+        return self._archive
+
+    def _raw_mark_dirty(self) -> None:
+        self._slide._mark_dirty()
 
     @property
     def geometry(self) -> Optional[_Geometry]:
@@ -972,7 +989,7 @@ class Image(_ShapeStyleAccessors):
         return f"<Image id={self._archive_id} geom={self._geometry}>"
 
 
-class Slide:
+class Slide(RawArchiveMixin):
     """A single slide. Indexable from ``deck.slide[i]`` (0-based)."""
 
     def __init__(
@@ -1020,6 +1037,15 @@ class Slide:
         if arch is None:
             return []
         return arch.get("objects", [])
+
+    # --- RawArchiveMixin hooks (operate on the slide archive itself) ---
+
+    def _raw_archive_root(self) -> dict:
+        """For Slide, the raw archive is the KN.SlideArchive object."""
+        return self._slide_archive or {}
+
+    def _raw_mark_dirty(self) -> None:
+        self._mark_dirty()
 
     def _mark_dirty(self):
         """Tell the parent deck this slide needs re-serialization."""

@@ -1,6 +1,6 @@
 # KPA — Editable Surface Coverage
 
-**Last updated:** 2026-06-07 22:30 PDT (Step 4c.5 GREEN)
+**Last updated:** 2026-06-08 09:15 PDT (Step 4c.7 GREEN)
 
 Per Captain 2026-06-07 08:28 PDT, KPA must address every editable
 element in the `.key` file structure. This is the live coverage tracker
@@ -147,8 +147,16 @@ for the F2d success criterion.
 
 | Capability | Protobuf type(s) | Status | Test | Notes |
 |---|---|---|---|---|
-| `Slide.raw_archive(id_or_pbtype)` | any | `unmapped` | — | 4c.7 |
-| `Deck.raw_archive(path)` | document-level | `unmapped` | — | 4c.7 |
+| `proxy.raw_archive()` (live dict) | any | **round-trip** | test_escape_4c7.py (all read tests) | 4c.7 |
+| `proxy.raw_get(path, default=None)` (deep read) | any | **round-trip** | test_escape_4c7.py::test_textblock_raw_introspection | 4c.7 |
+| `proxy.raw_set(path, value)` (deep write + auto-dirty) | any | **round-trip** | test_escape_4c7.py::test_textblock_raw_set_round_trip + 5 more | 4c.7 |
+| `proxy.raw_keys(path="")` (introspection) | any | **round-trip** | test_escape_4c7.py::test_textblock_raw_introspection | 4c.7 |
+| `proxy.raw_dump(path, maxdepth)` (pretty view) | any | **round-trip** | test_escape_4c7.py::test_textblock_raw_introspection | 4c.7 |
+| `proxy.raw_pbtype()` (type discovery) | any | **round-trip** | test_escape_4c7.py::test_slide_raw_pbtype | 4c.7 |
+| Path syntax: dot keys + `[idx]` lists, mixed | (parser) | **round-trip** | test_escape_4c7.py::test_parse_path_* | 4c.7 |
+| `kpa.escape.deep_get/deep_set/keys_at/truncate_view` (low-level helpers) | (parser) | **round-trip** | test_escape_4c7.py::test_deep_get_* + test_deep_set_* | 4c.7 |
+| `RawArchiveMixin` (universal mixin) | (helper) | **round-trip** | 8 proxies wired: TextBlock/Image/Slide/Build/Transition/Movie/Soundtrack/LiveVideoSource | 4c.7 |
+| `Deck.raw_archive(path)` (document-level walker by pbtype) | document-level | `unmapped` | — | 4c.7.2 (deferred) |
 
 ### 4c.8 — Slide-kind library + brand validator + asset grovel
 
@@ -171,6 +179,7 @@ for the F2d success criterion.
 | 4c.2 (shape visuals) | 12 | 9 | 3 (rotation, flip, gradient/image fills) |
 | 4c.4 (animations + transitions) | 20 | 18 | 2 (build_order, copy_to) |
 | 4c.5 (media: movies + soundtrack + live video) | 21 | 17 | 4 (per-track audio level, autoplay/controls, blob replace, motion background) |
+| 4c.7 (universal escape hatch) | 10 | 9 | 1 (Deck-level walker by pbtype) |
 | 4c.2 (shape + effects) | 13 | 0 | 13 |
 | 4c.3 (layout) | 7 | 0 | 7 |
 | 4c.4 (animations) | 6 | 0 | 6 |
@@ -189,3 +198,4 @@ for the F2d success criterion.
 | 2026-06-07 15:15 PDT | 4c.2 GREEN | Shape visual styling: fill_color / stroke (color/width/pattern/clear) / shadow (full param set) / opacity / reflection all round-trip green. 9/9 new tests passing; full suite 24/24 in 9m55s. `_ShapeStyleAccessors` mixin landed on TextBlock + Image. `kpa.styles.resolve_shape_visuals` + `mutate_shape_visual` + `shape_style_id` resolver/writer wired. Engineering finding: visuals live at `super.shapeProperties.{fill,stroke,shadow,opacity,reflection}` of the TSWP.ShapeStyleArchive's TSD base slice; resolver follows the `super` chain leaf-first. Deferred to 4c.2.2: rotation, horizontal/vertical flip (geometry-level, not style-level), gradient/image fills. Visual smoke pending. |
 | 2026-06-07 17:30 PDT | 4c.4 GREEN | Animations + transitions: 18 capabilities round-trip green. Build (effect / animation_type / duration / delay / trigger / text_delivery / delivery_direction / target / read+find) + Slide.add_build / remove_build / builds list + Transition (effect / duration / delay / direction / is_automatic) all GREEN. 13/13 new tests; full suite 37/37 in 14m16s. New module `kpa.animations` (Build, Transition, EFFECTS alias catalog with 25 short names mapping to apple:* full strings). Major engineering finding: keynote-parser's binary encoder requires `TSP.ArchiveInfo` header with `messageInfos: [{type: 8, version: [1,0,5]}]` for new KN.BuildArchive sibling archives — plain `{identifier}` headers fail at pack with `messageInfos` error. add_build now emits the correct envelope. Empirical: only `kTextDeliveryByObject` exists in our sample data; paragraph/word/character variants are best-effort writes (may silently drop). Visual smoke pending. |
 | 2026-06-07 22:30 PDT | 4c.5 GREEN | Media (video + audio): 17 capabilities round-trip green. Movie (loop with 3 modes + aliases, plays_across_slides, start/end_time trim, set_trim convenience, duration, poster_time, volume + mute/unmute, audio_only, ref ids, streaming, natural_size) + Slide.movies + Soundtrack (mode with 3 modes + aliases, volume) + Deck.soundtrack + Deck.live_video_sources + LiveVideoSource (name, is_default). 13/13 new tests; full suite 50/50 in 18m49s. New module `kpa.media` (Movie, Soundtrack, LiveVideoSource). New Deck infra: `_document_root()` lazy loader, `_mark_document_dirty()`, `_find_document_archive(s)` helpers for Document.iwa.yaml mutations — first deck-level archive writes in kpa, soundtrack and live-video flush through save(). Major proven find: encoder DOES accept `kKNSoundtrackModeLoop` even though only `kKNSoundtrackModePlayOnce` is in source data — proto schema enum survives round-trip (validates the "unknown enums fall through" pattern as a real capability, not a wishlist). Loop aliases (off/loop/bounce/pingpong) + soundtrack mode aliases (once/loop/off) make the API friendly. Deferred to 4c.5.2: per-track audio_level (TSD.MediaStyleArchive), autoplay/show_controls (proto field not yet identified), Movie.replace(asset_path) blob swap, Slide.motion_background. Visual smoke pending. |
+| 2026-06-08 09:15 PDT | 4c.7 GREEN | Universal escape hatch: 9 capabilities round-trip green. New module `kpa.escape` with `RawArchiveMixin` wired into 8 proxies (TextBlock, Image, Slide, Build, Transition, Movie, Soundtrack, LiveVideoSource). API: `raw_archive()`, `raw_get(path)`, `raw_set(path, value)`, `raw_keys(path="")`, `raw_dump(path, maxdepth)`, `raw_pbtype()`. Path syntax supports dot-separated keys + `[N]` list indices + mixed (e.g. `super.objects[0].pbtype`). Low-level helpers `deep_get`/`deep_set`/`keys_at`/`truncate_view` exposed at module level for power users. 18/18 new tests; full suite 68/68 in 21m45s. Engineering finding: each proxy needs its own `_raw_archive_root()` because the archive shape varies (TextBlock=ShapeInfoArchive, Image=ImageArchive, Slide=SlideArchive, Build=BuildArchive, Movie=MovieArchive, Soundtrack=Soundtrack@Document.iwa, LiveVideo=LiveVideoSource@Document.iwa, Transition=transition subtree of SlideArchive). raw_set auto-creates missing dict intermediates and auto-marks dirty for save() flushing. raw_pbtype returns None for Transition since its root is a subtree, not a typed archive. Closes the 'agent never blocked' gate — any field in any covered proxy is now writable even if no typed accessor exists yet. Deferred to 4c.7.2: Deck-level `raw_archive(pbtype)` walker for document-wide schema queries. |
