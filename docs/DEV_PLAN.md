@@ -693,3 +693,36 @@ on a real `.key`, openable in Keynote.app.
 - Step 2 done (raw extract + normalization + diff). Compile-to-Python and
   smoke-test still to do but unblocked
 - Next: commit progress, then Step 3 IWA codec adaptation
+
+
+### 2026-06-07 — Steps 3/4 condensed log
+
+(Detailed entries live in `docs/COVERAGE.md` status log + commit history.)
+
+- **Step 3 GREEN** — keynote-parser fork patched (snappy collision + recursive `_walk_messages()` in mapping.py). F1 lossless round-trip verified on SVEF + NCI.
+- **Step 4a parity GREEN** (3 tests) — Deck.from_template + save round-trip.
+- **Step 4b mutation GREEN** (3 tests) — TextBlock/Image/Slide proxies + set_text/move/set_position.
+- **PRD v1.3 approved by Captain (08:28 PDT)** — scope expanded to TOTAL editable surface.
+
+### 2026-06-07 — Step 4c sub-steps (Editable Surface)
+
+- **4c.1 text styling GREEN** (9 tests) — font/color/alignment/spacing on char + para styles.
+- **4c.2 shape visuals GREEN** (9 tests) — fill/stroke/shadow/opacity/reflection.
+- **4c.4 animations + transitions GREEN** (13 tests) — Build, Transition, EFFECTS catalog, add/remove_build. Discovered TSP.ArchiveInfo messageInfos requirement.
+- **4c.5 media GREEN** (13 tests) — Movie/Soundtrack/LiveVideoSource. First Document.iwa.yaml writes; Deck._document_root() plumbing landed.
+
+### 2026-06-08 09:15 PDT — Step 4c.7 GREEN
+
+- **4c.7 universal escape hatch GREEN** (18 tests) — kpa.escape module + RawArchiveMixin wired into 8 proxies (TextBlock, Image, Slide, Build, Transition, Movie, Soundtrack, LiveVideoSource).
+- Universal API: `raw_archive()`, `raw_get(path)`, `raw_set(path, value)`, `raw_keys(path)`, `raw_dump(path, maxdepth)`, `raw_pbtype()`.
+- Path syntax: dot keys + `[N]` indices + mixed.
+- Full suite: **68/68 passing** in 21m45s.
+- Closes the "agent never blocked" gate — any field in any covered archive is writable, even without typed accessors.
+- Phase 1 Step 4: **72/100 capabilities round-trip (72%)**.
+- Commit `d716633` on origin/main.
+
+### 2026-06-08 09:25 PDT — Handoff prepared
+
+- `docs/HANDOFF.md` refreshed with current state, capability table, engineering findings, escape-hatch quick reference, and recommended next steps.
+- Sub-steps remaining for Phase 1 close: **4c.3 layout/structure (NEXT)**, 4c.6 tables/charts, 4c.8 slide-kind library + validator + asset grovel.
+- Ready to resume in fresh session (incl. Telegram HQ "Keynote" topic) — boot checklist in HANDOFF.md.
