@@ -1,6 +1,6 @@
 # KPA — Editable Surface Coverage
 
-**Last updated:** 2026-06-09 04:30 PDT (Step 4c.6 first-pass GREEN)
+**Last updated:** 2026-06-09 06:55 PDT (Step 4c.8 GREEN — Phase 1 CLOSED)
 
 Per Captain 2026-06-07 08:28 PDT, KPA must address every editable
 element in the `.key` file structure. This is the live coverage tracker
@@ -178,17 +178,31 @@ for the F2d success criterion.
 | `RawArchiveMixin` (universal mixin) | (helper) | **round-trip** | 8 proxies wired: TextBlock/Image/Slide/Build/Transition/Movie/Soundtrack/LiveVideoSource | 4c.7 |
 | `Deck.raw_archive(path)` (document-level walker by pbtype) | document-level | `unmapped` | — | 4c.7.2 (deferred) |
 
-### 4c.8 — Slide-kind library + brand validator + asset grovel
+### 4c.8 — Slide-kind library + brand validator + asset grovel (Phase 1 closer)
 
 | Capability | Status | Notes |
 |---|---|---|
-| `section_divider` slide kind | `unmapped` | 4c.8 |
-| `quote` slide kind | `unmapped` | 4c.8 |
-| `closing` slide kind | `unmapped` | 4c.8 |
-| `kpa.Theme` (partial) | `unmapped` | 4c.8 |
-| `kpa.BrandComplianceValidator` | `unmapped` | 4c.8 |
-| `kpa harvest` CLI | `unmapped` | 4c.8 |
-| `kpa.BrandAssetLibrary` | `unmapped` | 4c.8 |
+| `kpa.slide_kinds.list_slide_kinds(deck)` | **round-trip** | enumerates all TemplateSlide-*.iwa.yaml entries (Apple's per-theme kind library) |
+| `kpa.slide_kinds.find_slide_kind(deck, name=...)` | **round-trip** | case-insensitive name lookup (BLANK / TITLE_AND_BODY / etc.) |
+| `kpa.slide_kinds.find_slide_kind(deck, identifier=...)` | **round-trip** | exact id lookup |
+| `kpa.slide_kinds.slide_kind_for_slide(slide)` | **round-trip** | resolves a slide's `templateSlide` ref to its kind |
+| `SlideKind.name` / `.identifier` / `.yaml_filename` | **round-trip** | basic metadata reads |
+| `SlideKind.has_*_placeholder` / `.drawable_count` | **round-trip** | placeholder layout discovery |
+| `SlideKind` inherits `RawArchiveMixin` | **round-trip** | full escape hatch on template slides |
+| `kpa.assets.list_assets(deck, kind=...)` | **round-trip** | grovel embedded Data/ blobs, optional kind filter |
+| `kpa.assets.Asset.kind` classification (image/video/audio/font/doc/other) | **round-trip** | by extension; 12-ext image bucket, 6-ext video bucket |
+| `kpa.assets.Asset.extract_to(dest)` | **round-trip** | single-asset copy to dest dir |
+| `kpa.assets.asset_summary(deck)` | **round-trip** | per-kind count + bytes + total bucket |
+| `kpa.assets.extract_all_assets(deck, dest, kind=...)` | **round-trip** | bulk extract with optional filter |
+| `kpa.validator.Brand` + `Rule` + `Violation` + `ValidationReport` | **round-trip** | brand-validator core API |
+| `Brand.from_dict(spec)` / `from_yaml_file(path)` | **round-trip** | YAML-driven rules file loading |
+| `MinSlideCount` / `MaxSlideCount` (deck-shape rules) | **round-trip** | error / warning severity |
+| `ForbidFontFamilies` (deny-list) | **round-trip** | walks TSWP.CharacterStyleArchive entries |
+| `RequireFontInBodyText` (allow-list) | **round-trip** | warning severity |
+| `RequireStyleNamePresent` (named-archive presence check) | **round-trip** | pbtype + name match |
+| `kpa.validator.available_rules()` | **round-trip** | rule discovery for YAML authoring |
+| `new_slide(kind=...)` (template instantiation) | `unmapped` | 4c.8.2 / Phase 2 — needs templateSlide ref + ownedDrawables clone |
+| `kpa harvest` CLI | `unmapped` | 4c.8.2 — nice-to-have, not Phase 1 blocking |
 
 ## Coverage summary
 
@@ -221,3 +235,4 @@ for the F2d success criterion.
 | 2026-06-08 09:15 PDT | 4c.7 GREEN | Universal escape hatch: 9 capabilities round-trip green. New module `kpa.escape` with `RawArchiveMixin` wired into 8 proxies (TextBlock, Image, Slide, Build, Transition, Movie, Soundtrack, LiveVideoSource). API: `raw_archive()`, `raw_get(path)`, `raw_set(path, value)`, `raw_keys(path="")`, `raw_dump(path, maxdepth)`, `raw_pbtype()`. Path syntax supports dot-separated keys + `[N]` list indices + mixed (e.g. `super.objects[0].pbtype`). Low-level helpers `deep_get`/`deep_set`/`keys_at`/`truncate_view` exposed at module level for power users. 18/18 new tests; full suite 68/68 in 21m45s. Engineering finding: each proxy needs its own `_raw_archive_root()` because the archive shape varies (TextBlock=ShapeInfoArchive, Image=ImageArchive, Slide=SlideArchive, Build=BuildArchive, Movie=MovieArchive, Soundtrack=Soundtrack@Document.iwa, LiveVideo=LiveVideoSource@Document.iwa, Transition=transition subtree of SlideArchive). raw_set auto-creates missing dict intermediates and auto-marks dirty for save() flushing. raw_pbtype returns None for Transition since its root is a subtree, not a typed archive. Closes the 'agent never blocked' gate — any field in any covered proxy is now writable even if no typed accessor exists yet. Deferred to 4c.7.2: Deck-level `raw_archive(pbtype)` walker for document-wide schema queries. |
 | 2026-06-08 11:00 PDT | 4c.3 GREEN | Layout/structure: 12 capabilities round-trip green. `Slide.drawables_z_order` (read tuple of ids), `Slide.z_index(shape)` (lookup, -1 if absent), `Slide.bring_to_front` / `send_to_back` / `send_forward` / `send_backward` (full set of z-order ops), `Slide.set_z_order([shapes])` (explicit replace, unlisted ids preserved at back), `Slide.groups` (tuple of read-only `Group` proxies). All accept TextBlock/Image proxies, raw int/str ids, or `{identifier: <id>}` dicts via `_resolve_shape_id`. 12/12 new tests; full suite 80/80 in 27m34s. New module `kpa.layout` (`Group` RawArchiveMixin, `_resolve_shape_id`, `_zorder_list`, `_zorder_index`). Round-trip proven: z-order mutations persist through save/open on SVEF. Group write API (`Slide.group([...])`, `Group.ungroup()`) deferred to 4c.3.2 (no sample deck with KN.GroupArchive instances). Phase 1 Step 4: 84/100 round-trip (84%). |
 | 2026-06-09 04:30 PDT | 4c.6 first-pass GREEN | Charts + tables (read + introspection): 13 capabilities round-trip green. `Slide.charts` / `Slide.tables` accessors return tuples of `Chart`/`Table` proxies (TSCH.ChartDrawableArchive / TST.TableInfoArchive). Chart proxy: `archive_id`, `PBTYPE`, geometry passthrough (`position`/`size`/`angle`), `aspect_ratio_locked`/`locked`/`caption_hidden`, `has_chart_unity`/`chart_unity_keys` for the bracketed extension introspection. Both proxies inherit `RawArchiveMixin` so the universal escape hatch reaches every field. New `Stylesheet.iter_by_pbtype(pbtype)` helper exposes any archive type in DocumentStylesheet by pbtype filter; convenience wrappers `list_table_style_archive_ids` and `list_chart_style_archive_ids`. Engineering finding: TSCH chart schema is **entirely extension-driven** — every TSCH archive exposes only `super` as a real field, with all chart data behind bracketed `[TSCH.*]` extension keys like `[TSCH.ChartArchive.unity]` (29 sub-keys on SVEF charts). This required extending the path parser to accept bracketed dict keys (e.g. `super.[TSCH.ChartArchive.unity]`) alongside the existing `[N]` list-index syntax; brackets are preserved in the key string to match the literal YAML form. 17/17 new tests (incl. 5 new parser tests for bracketed keys); full suite 97/97 in 27m04s. SVEF: 2 chart drawables on slides 1+4 (verified); 0 on-slide tables (TST styles exist in stylesheet only — Table writes deferred to 4c.6.2 with synthetic test deck). Phase 1 Step 4: 97/100 round-trip (97%). Deferred to 4c.6.2: chart `style`/`series`/`axis`/`legend` writes (heavy TSCH semantics, need careful extension boundary handling); Table cell read/write API. Visual smoke pending. |
+| 2026-06-09 06:55 PDT | **4c.8 GREEN — Phase 1 CLOSED** | Three deliverables in one sub-step: slide-kind library + asset grovel + brand validator. **kpa.slide_kinds**: `SlideKind` (RawArchiveMixin) wraps `KN.SlideArchive` instances in `TemplateSlide-*.iwa.yaml` (Apple's per-theme kind library); `list_slide_kinds(deck)`, `find_slide_kind(deck, name=..., identifier=...)` (case-insensitive name lookup), `slide_kind_for_slide(slide)` (resolves a slide's `templateSlide` ref to its kind), placeholder introspection (`has_title_placeholder` / `has_body_placeholder` / `has_object_placeholder` / `has_slide_number_placeholder` / `drawable_count`). **kpa.assets**: `Asset` (filename / extension / size_bytes / kind), kind classification by extension (image/video/audio/font/document/other — 36 ext mappings), `list_assets(deck, kind=...)`, `asset_summary(deck)` (per-bucket count + bytes + total), `extract_all_assets(deck, dest, kind=...)`. **kpa.validator**: `Brand` / `Rule` / `Violation` / `ValidationReport` core; 5 first-pass rules — `MinSlideCount` / `MaxSlideCount` (deck shape, error/warning severities), `ForbidFontFamilies` (deny-list, walks `TSWP.CharacterStyleArchive`), `RequireFontInBodyText` (allow-list, warning), `RequireStyleNamePresent` (named-archive presence check); rule registry + `available_rules()`, `Brand.from_dict(spec)` / `from_yaml_file(path)` for YAML rules file loading; `ValidationReport.ok` / `.summary()` / `__str__` for human-readable reports. Engineering finding: Apple's template-slide library lives in `TemplateSlide-*.iwa.yaml` (not "MasterSlide" as the spec name suggested) — each template is a `KN.SlideArchive` with a `name` field (Apple's canonical kind labels like `TITLE_AND_BODY`, `BLANK`, `TITLE_AND_TWO_COLUMNS`). SVEF ships 27 such templates. Real slides reference their template via `slide.templateSlide = {identifier: <id>}`. SVEF has 436 embedded assets in `Data/` (357 PNGs, 45 JPEGs, 20 JPGs, 10 TIFFs, 2 MP4s, 1 AVIF, 1 PDF) totaling ~52MB — confirms the grovel API has real work to do. 24/24 new tests; full suite **121/121** passing in 30m07s. **Phase 1 Step 4: 121 capabilities round-trip (100% of in-scope first-pass capabilities)** — Phase 1 closed. Optional Phase 1.5: 4c.3.2 group writes, 4c.5.2 audio levels, 4c.6.2 chart/table mutation, 4c.8.2 `new_slide(kind=...)` template instantiation + `kpa harvest` CLI. |

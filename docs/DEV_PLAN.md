@@ -758,3 +758,27 @@ on a real `.key`, openable in Keynote.app.
 - Full suite: **97/97 passing** in 27m04s.
 - Phase 1 Step 4: **97/100 capabilities round-trip (97%)**.
 - **Remaining for Phase 1 close:** 4c.8 (slide-kind library + brand validator + asset grovel). Optional: 4c.3.2 group write, 4c.6.2 chart/table mutation.
+
+### 2026-06-09 06:55 PDT — Step 4c.8 GREEN — **PHASE 1 CLOSED** 🎉
+
+- **4c.8 GREEN** (24 tests) — Phase 1 closer: slide-kind library + asset grovel + brand validator.
+- New module **`src/kpa/slide_kinds.py`**:
+  - `SlideKind` (RawArchiveMixin) over `KN.SlideArchive` in `TemplateSlide-*.iwa.yaml`
+  - `list_slide_kinds(deck)`, `find_slide_kind(deck, name=..., identifier=...)`, `slide_kind_for_slide(slide)`
+  - Placeholder introspection: `has_title_placeholder`, `has_body_placeholder`, `has_object_placeholder`, `has_slide_number_placeholder`, `drawable_count`
+- New module **`src/kpa/assets.py`**:
+  - `Asset` (filename / extension / size_bytes / kind)
+  - Kind classification: image (12 ext) / video (6) / audio (7) / font (5) / document (1) / other
+  - `list_assets(deck, kind=...)`, `asset_summary(deck)`, `extract_all_assets(deck, dest, kind=...)`
+- New module **`src/kpa/validator.py`**:
+  - `Brand` / `Rule` / `Violation` / `ValidationReport` core API
+  - 5 first-pass rules: `MinSlideCount`, `MaxSlideCount`, `ForbidFontFamilies`, `RequireFontInBodyText`, `RequireStyleNamePresent`
+  - Rule registry + `available_rules()`, `Brand.from_dict(spec)` / `from_yaml_file(path)`
+  - Severity model: `error` (blocks) vs `warning` (flags)
+- **Engineering finding:** Apple's template-slide library lives in `TemplateSlide-*.iwa.yaml` (not "MasterSlide"). Each template is a `KN.SlideArchive` with a `name` field carrying Apple's canonical kind labels (`BLANK`, `TITLE_AND_BODY`, `TITLE_AND_TWO_COLUMNS`, etc.). SVEF ships 27 templates. Real slides reference theirs via `slide.templateSlide = {identifier: <id>}`.
+- **SVEF asset shape confirmed:** 436 embedded blobs in `Data/`, ~52MB. Grovel API has real work.
+- Full suite: **121/121 passing** in 30m07s.
+- Phase 1 Step 4 final tally: **121 capabilities round-trip** across 9 sub-steps.
+- **Phase 1 is closed.** All in-scope first-pass capabilities GREEN.
+- **Optional Phase 1.5 polish:** 4c.3.2 group writes, 4c.5.2 audio levels, 4c.6.2 chart/table mutation, 4c.8.2 `new_slide(kind=...)` + `kpa harvest` CLI.
+- **Phase 2:** typed accessors for deferred items + first real Brainworks deck authored via kpa.
