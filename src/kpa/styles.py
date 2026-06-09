@@ -72,6 +72,17 @@ class Stylesheet:
     def __contains__(self, identifier) -> bool:
         return str(identifier) in self._index
 
+    def iter_by_pbtype(self, pbtype: str):
+        """Yield ``(identifier, archive_object)`` for every stylesheet
+        archive whose first object has the given ``_pbtype``.
+
+        Used by Step 4c.6+ data-shape introspection (chart/table
+        style enumeration) and any future brand-validator pass.
+        """
+        for ident, obj in self._index.items():
+            if isinstance(obj, dict) and obj.get("_pbtype") == pbtype:
+                yield ident, obj
+
     def __len__(self) -> int:
         return len(self._index)
 

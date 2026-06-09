@@ -743,3 +743,18 @@ on a real `.key`, openable in Keynote.app.
 - Full suite: **80/80 passing** in 27m34s.
 - Phase 1 Step 4 capability bar: **84/100 round-trip (84%)** (was 72%; +12 layout capabilities).
 - Remaining for Phase 1 close: **4c.6 tables + charts**, **4c.8 slide-kind library + validator + asset grovel**, optional **4c.3.2** group write + guides + notes.
+
+### 2026-06-09 04:30 PDT — Step 4c.6 first-pass GREEN
+
+- **4c.6 first-pass GREEN** (17 tests) — Charts + tables read API + escape hatch extension.
+- New module `src/kpa/shapes_data.py`: `Chart`, `Table` proxies (both `RawArchiveMixin`), `_DataShapeBase` for shared geometry passthrough, `list_table_style_archive_ids`, `list_chart_style_archive_ids` stylesheet enumeration helpers.
+- New `Slide` accessors: `slide.charts` (tuple of `Chart`), `slide.tables` (tuple of `Table`).
+- New `Stylesheet.iter_by_pbtype(pbtype)` helper for arbitrary pbtype enumeration in DocumentStylesheet.
+- **Path parser extension** (`kpa.escape._parse_path`) now accepts bracketed dict keys like `[TSCH.ChartArchive.unity]` alongside `[N]` list indices. Brackets are **preserved** in the key string so paths match the literal YAML key form. Pure-digit brackets remain list indices.
+- Engineering finding: **TSCH chart schema is entirely extension-driven.** Every TSCH archive exposes only `super` as a real field; chart data lives behind bracketed `[TSCH.*]` extension keys (29 sub-keys in the SVEF unity block). This is unusual for Apple iWork archives — most other archives have direct fields.
+- SVEF state: 2 chart drawables (slides 1+4, verified); 0 on-slide tables (only TST styles in stylesheet).
+- Chart geometry survives lossless save/open: round-trip proven.
+- Writes deferred to **4c.6.2** (chart style/series/axis/legend; table cells with synthetic deck).
+- Full suite: **97/97 passing** in 27m04s.
+- Phase 1 Step 4: **97/100 capabilities round-trip (97%)**.
+- **Remaining for Phase 1 close:** 4c.8 (slide-kind library + brand validator + asset grovel). Optional: 4c.3.2 group write, 4c.6.2 chart/table mutation.

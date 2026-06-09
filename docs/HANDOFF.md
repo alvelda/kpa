@@ -1,6 +1,6 @@
 # KPA — Post-Compaction Handoff
 
-**Last updated:** 2026-06-08 11:00 PDT
+**Last updated:** 2026-06-09 04:35 PDT
 **Purpose:** Snapshot for the next session (likely launched in Telegram HQ → "Keynote" topic) to pick up KPA work without losing the thread.
 **Owner:** Scotty (iMac)
 **Captain:** Phillip Alvelda
@@ -10,8 +10,9 @@
 
 ## TL;DR for the next session
 
-> Phase 1 Step 4 is **84% complete (84/100 round-trip capabilities)**.
-> Eight sub-steps GREEN, two pending. **80/80 tests passing** in ~28 min.
+> Phase 1 Step 4 is **97% complete (97/100 round-trip capabilities)**.
+> Eight sub-steps GREEN, one pending (**4c.8** is the Phase 1 closer).
+> **97/97 tests passing** in ~27 min.
 > Working tree clean on `main`. **Recommended next:** Step 4c.6 tables + charts (densest schema; fresh session).
 > All planning artifacts are in `docs/` and committed.
 
@@ -27,20 +28,22 @@
 | 4b mutation | ✅ GREEN | 3 | TextBlock/Image/Slide proxies, set_text/move/set_position |
 | 4c.1 text styling | ✅ GREEN | 9 | font/color/alignment/spacing on character + paragraph styles |
 | 4c.2 shape visuals | ✅ GREEN | 9 | fill/stroke/shadow/opacity/reflection |
-| **4c.3 layout/structure** | ✅ GREEN | 12 | z-order ops (bring_to_front/send_to_back/forward/backward/set_z_order) + Group read proxy |
+| 4c.3 layout/structure | ✅ GREEN | 12 | z-order ops (bring_to_front/send_to_back/forward/backward/set_z_order) + Group read proxy |
 | 4c.4 animations + transitions | ✅ GREEN | 13 | Build, Transition, EFFECTS alias catalog, add/remove_build |
 | 4c.5 media | ✅ GREEN | 13 | Movie, Soundtrack, LiveVideoSource; Document.iwa.yaml mutations |
-| **4c.6 tables + charts** | ⏳ pending | — | densest schema, recommended fresh session (NEXT) |
+| 4c.6 charts + tables (first-pass) | ✅ GREEN | 17 | Chart/Table read proxies + bracketed-key escape hatch + Stylesheet.iter_by_pbtype |
 | 4c.7 universal escape hatch | ✅ GREEN | 18 | raw_get/set/keys/dump/pbtype on all 8 proxies |
-| 4c.8 slide-kind library + validator + asset grovel | ⏳ pending | — | closes Phase 1 |
+| **4c.8 slide-kind library + validator + asset grovel** | ⏳ pending | — | closes Phase 1 (NEXT) |
 
-**Phase 1 capability bar: 84/100 round-trip.** Total test count: **80 passing**, runtime ~28 min.
+**Phase 1 capability bar: 97/100 round-trip.** Total test count: **97 passing**, runtime ~27 min.
 
-### Last 4 commits (latest on `origin/main` first)
-- `<pending>` feat(kpa): 4c.3 layout/structure GREEN — z-order + Group proxy (2026-06-08 11:00)
+### Last 6 commits (latest on `origin/main` first)
+- `<pending>` feat(kpa): 4c.6 first-pass GREEN — charts + tables read API + bracketed extension keys (2026-06-09 04:30)
+- `f80b97e` feat(kpa): 4c.3 layout/structure GREEN — z-order ops + Group read proxy (2026-06-08 11:00)
 - `a02bffc` docs(kpa): refresh HANDOFF.md + DEV_PLAN.md for session handoff (2026-06-08 09:25)
 - `d716633` feat(kpa): 4c.7 universal escape hatch GREEN — agents never blocked (2026-06-08 09:15)
 - `61b0d39` feat(kpa): 4c.5 media GREEN — 17 capabilities (movies + soundtrack + live video) (2026-06-07 22:30)
+- `0275ef2` feat(kpa): 4c.4 animations + transitions GREEN — 18 capabilities (2026-06-07 17:30)
 
 ---
 

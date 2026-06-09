@@ -1206,6 +1206,43 @@ class Slide(RawArchiveMixin):
                     break
         return tuple(out)
 
+    # ---- data shapes (Step 4c.6 first pass: read-only) ----
+
+    @property
+    def charts(self) -> tuple:
+        """All :class:`Chart` instances on this slide
+        (:class:`TSCH.ChartDrawableArchive`).
+
+        Read-only first pass (4c.6): identifier + geometry passthrough
+        + escape hatch for the bracketed ``[TSCH.*]`` extension keys.
+        Series/axis mutation deferred to 4c.6.2.
+        """
+        from kpa.shapes_data import Chart
+        out: list = []
+        for aid, arch in self._archive_index.items():
+            for obj in arch.get("objects", []):
+                if obj.get("_pbtype") == "TSCH.ChartDrawableArchive":
+                    out.append(Chart(slide=self, archive=obj, archive_id=aid))
+                    break
+        return tuple(out)
+
+    @property
+    def tables(self) -> tuple:
+        """All :class:`Table` instances on this slide
+        (:class:`TST.TableInfoArchive`).
+
+        Read-only first pass (4c.6): identifier + geometry passthrough
+        + escape hatch. Cell read/write deferred to 4c.6.2.
+        """
+        from kpa.shapes_data import Table
+        out: list = []
+        for aid, arch in self._archive_index.items():
+            for obj in arch.get("objects", []):
+                if obj.get("_pbtype") == "TST.TableInfoArchive":
+                    out.append(Table(slide=self, archive=obj, archive_id=aid))
+                    break
+        return tuple(out)
+
     # ---- animations (Step 4c.4) ----
 
     @property

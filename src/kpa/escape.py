@@ -38,8 +38,14 @@ from typing import Any, Optional
 
 # ---------- path parser ----------
 
-# Match either a bare key (until '.' or '[') or a [index] segment.
-_SEGMENT_RE = re.compile(r"([^.\[\]]+)|\[(\d+)\]")
+# Path segment patterns. Order matters in _parse_path:
+#   1. ``[N]`` (pure digits in brackets) -> list index
+#   2. ``[name]`` (anything else in brackets, e.g. bracketed protobuf
+#      extension keys like ``[TSCH.ChartArchive.unity]``) -> dict key
+#   3. bare-key (until next `.` or `[`) -> dict key
+_RE_LIST_INDEX = re.compile(r"\[(-?\d+)\]")
+_RE_BRACKET_KEY = re.compile(r"\[([^\]]+)\]")
+_RE_BARE_KEY = re.compile(r"([^.\[\]]+)")
 
 
 def _parse_path(path: str) -> list:
@@ -47,22 +53,53 @@ def _parse_path(path: str) -> list:
 
     kind is 'key' for dict keys (key=str) or 'idx' for list indices
     (key=int). An empty path yields an empty list.
+
+    Supported syntax:
+      * ``a.b.c``          dict.dict.dict
+      * ``a[3].b``         dict, list[3], dict
+      * ``a.[ext.key].b``  dict, dict["ext.key"], dict  (bracketed dict key)
+      * ``[ext.key]``      dict["ext.key"]               (leading bracketed key)
+
+    Bracketed segments containing only digits are parsed as list
+    indices; anything else is treated as a literal dict key. This
+    lets paths reach into Apple's bracketed protobuf extension keys
+    such as ``[TSCH.ChartArchive.unity]`` without ambiguity.
     """
     if not path:
         return []
     out = []
     pos = 0
-    while pos < len(path):
-        m = _SEGMENT_RE.match(path, pos)
-        if not m:
-            raise ValueError(f"Invalid path segment at position {pos} in {path!r}")
-        if m.group(1) is not None:
-            out.append(("key", m.group(1)))
+    n = len(path)
+    while pos < n:
+        ch = path[pos]
+        if ch == "[":
+            # Try list index first, then bracketed dict key
+            m = _RE_LIST_INDEX.match(path, pos)
+            if m:
+                out.append(("idx", int(m.group(1))))
+                pos = m.end()
+            else:
+                m = _RE_BRACKET_KEY.match(path, pos)
+                if not m:
+                    raise ValueError(
+                        f"Invalid bracket segment at position {pos} in {path!r}"
+                    )
+                # Preserve the brackets in the key name: Apple's
+                # protobuf extension keys appear literally as e.g.
+                # "[TSCH.ChartArchive.unity]" in the YAML, so we
+                # match the literal key form, brackets included.
+                out.append(("key", m.group(0)))
+                pos = m.end()
         else:
-            out.append(("idx", int(m.group(2))))
-        pos = m.end()
-        # Skip dot separator between key segments
-        if pos < len(path) and path[pos] == ".":
+            m = _RE_BARE_KEY.match(path, pos)
+            if not m:
+                raise ValueError(
+                    f"Invalid path segment at position {pos} in {path!r}"
+                )
+            out.append(("key", m.group(1)))
+            pos = m.end()
+        # Skip dot separator between segments
+        if pos < n and path[pos] == ".":
             pos += 1
     return out
 
