@@ -782,3 +782,39 @@ on a real `.key`, openable in Keynote.app.
 - **Phase 1 is closed.** All in-scope first-pass capabilities GREEN.
 - **Optional Phase 1.5 polish:** 4c.3.2 group writes, 4c.5.2 audio levels, 4c.6.2 chart/table mutation, 4c.8.2 `new_slide(kind=...)` + `kpa harvest` CLI.
 - **Phase 2:** typed accessors for deferred items + first real Brainworks deck authored via kpa.
+
+---
+
+## Phase 1.5 — Polish Sub-Steps (PLANNED 2026-06-09 07:35 PDT)
+
+**Captain directive:** full comprehensive build (A1). All four sub-steps before moving to Phase 2.
+
+### 4c.8.2 — `Deck.new_slide(kind=...)` template instantiation
+- Clone SlideArchive from template; rewrite identifiers (drawables, styles, placeholders).
+- Create SlideNodeArchive wrapper with `templateSlideId` UUID (cribbed from existing nodes of same template).
+- Append to `ShowArchive.slideTree.slides`.
+- Emit new `Slide-<id>.iwa` file on save.
+- Tests: instantiate each canonical kind in SVEF, verify F1 round-trip, then mutate (set_text on title placeholder).
+
+### 4c.6.2 — Chart/table mutation
+- `chart.style = stylesheet.find_by_name(...)`
+- `table.cell(r, c).value = ...` (writes to TST.TableDataStore cells)
+- Tests: round-trip writes verified by re-reading after save.
+
+### 4c.3.2 — Group writes
+- `slide.add_group([shape1, shape2])` -> Group
+- `group.position = (x, y)`, `group.remove()` (ungroup)
+- Tests: round-trip group create/destroy + member positions.
+
+### 4c.5.2 — Audio writes
+- `soundtrack.volume = float`
+- `movie.volume = float`
+- Tests: volume round-trip.
+
+### Execution order
+1. 4c.8.2 (highest leverage, foundational)
+2. 4c.6.2 (chart writes + table cell writes)
+3. 4c.3.2 (group writes)
+4. 4c.5.2 (audio writes — quickest)
+
+Each sub-step: own commit, own test file, full docs refresh (COVERAGE detail + DEV_PLAN log entry + HANDOFF capability table). Sync-commit gate before execution.
