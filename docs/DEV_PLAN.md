@@ -818,3 +818,63 @@ on a real `.key`, openable in Keynote.app.
 4. 4c.5.2 (audio writes — quickest)
 
 Each sub-step: own commit, own test file, full docs refresh (COVERAGE detail + DEV_PLAN log entry + HANDOFF capability table). Sync-commit gate before execution.
+
+### 2026-06-09 16:55 PDT — Step 4c.8.2 GREEN — `Deck.new_slide(kind=...)` template instantiation
+
+- **4c.8.2 GREEN** (13 tests) — Phase 1.5 first sub-step done.
+- New module **`src/kpa/new_slide.py`** (orchestration helper, ~480 lines):
+  - Clones the chosen `TemplateSlide-*.iwa.yaml` KN.SlideArchive
+  - Rewrites every internal identifier (drawables, styles, placeholders, notes, guide storage) to avoid collisions with the deck's existing ids
+  - Builds a new KN.SlideNodeArchive wrapper (messageInfos type=4) with a fresh `templateSlideId` UUID pair (cribbed from an existing node of the same template when available)
+  - Appends `{identifier: <new SlideNodeArchive id>}` to `KN.ShowArchive.slideTree.slides`
+  - Emits a new `Slide-<id>.iwa.yaml` in `Index/`
+- `Deck.new_slide(kind: str, after: int | None = None)` is the public entry point.
+- `Slide._archive_id` property added as an alias for `_slide_id` so the proxy matches the convention used by every other proxy (TextBlock/Image/Chart/etc.).
+- Engineering notes:
+  - `TSP.ArchiveInfo.messageInfos` types observed in SVEF: KN.SlideNodeArchive → `type=4`, KN.SlideArchive → `type=5`. The cloned SlideArchive carries its own messageInfos from the template file (untouched).
+  - Build siblings (KN.BuildArchive) are NOT cloned from templates on first-pass instantiation. None of Apple's canonical templates (BLANK / TITLE_AND_BODY / TITLE_AND_TWO_COLUMNS) ship with builds, so this is a non-issue for the first pass. A future iteration can clone+rewrite them when a template carrying builds appears.
+- Tests cover:
+  - `new_slide(kind='BLANK')` appends + count goes up
+  - `new_slide(kind='TITLE_AND_BODY')` appends + survives round-trip
+  - Case-insensitive kind lookup
+  - Unknown kind raises ValueError
+  - New slide references the correct `templateSlide` identifier
+  - No `name` field on instantiated slide (only on the template)
+  - Internal identifiers don't collide with deck's existing ids
+  - `raw_get` works on the new slide
+  - YAML file actually emitted on save
+  - slideTree updated correctly
+  - `after=<index>` inserts at the right position
+  - Full lossless round-trip
+  - Multiple kinds (BLANK / TITLE_AND_BODY / TITLE_AND_TWO_COLUMNS) all round-trip
+- 13/13 new tests in `tests/test_new_slide_4c8_2.py`.
+
+### 2026-06-09 17:30 PDT — Step 4c.6.2 GREEN — Chart mutation API
+
+- **4c.6.2 GREEN** (17 tests) — Phase 1.5 second sub-step done.
+- New typed write accessors on `Chart` (in existing `src/kpa/shapes_data.py`):
+  - `chart_type` (str getter/setter; arbitrary TSCH enum strings)
+  - `chart_style_id` (point chartStyle at a stylesheet identifier)
+  - `column_names` (list[str] setter, length-locked to existing column count)
+  - `row_names` (list[str] setter, length-locked to series count)
+  - `series_count()` and `series_values(row_index)` reader
+  - `set_series_values(values, row_index=0)` (length-locked; `None` cells write empty dict, read back as `None`)
+  - `set_position(x, y)` / `set_size(w, h)` / `move(dx, dy)` geometry mutators
+  - `mark_dirty_for_recompute()` flips `[TSCH.ChartArchive.unity].isDirty` so Keynote re-runs the chart layout engine on next open
+- All length-mismatched inputs raise `ValueError` — no silent corruption.
+- Verified against the real SVEF chart on slide 1 (line chart, 4 columns × 1 series).
+- F2-edit-class gate green: `test_chart_full_redesign_round_trip` mutates type + grid + geometry in one save and re-reads everything correctly.
+- Engineering notes:
+  - The chart grid lives behind the bracketed extension key `[TSCH.ChartArchive.unity]` (which exposes 29 sub-keys on the SVEF chart). Setters auto-create the `unity` and `grid` dicts when absent.
+  - `grid.gridRow[i].value[j]` is a cell dict: numeric cells carry `{numericValue: float}`; blanks are empty dicts `{}`. The setter preserves this convention.
+- 17/17 new tests in `tests/test_chart_writes_4c6_2.py`.
+
+### 2026-06-09 — Phase 1.5 status & remaining sub-steps
+
+- ✅ **4c.8.2** (new_slide) — DONE
+- ✅ **4c.6.2** (chart writes) — DONE
+- ⏸️ **4c.3.2** (group writes) — DEFERRED (no SVEF/NCI sample contains a KN.GroupArchive; round-trip cannot be validated against a real Apple-produced deck). Needs a recon deck that uses groups; will land when one is harvested.
+- ⏸️ **4c.6.2-tables** (table cell read/write) — DEFERRED (same blocker: zero on-slide tables in SVEF or NCI; only TST styles in stylesheet). Needs a recon deck with at least one real on-slide TST.TableInfoArchive.
+- ✅ **4c.5.2** (audio writes) — already shipped in 4c.5 (Movie.volume and Soundtrack.volume already round-trip green in test_media_4c5.py). The original 4c.5.2 list was a planning miscount; closing as no-op.
+
+Phase 1.5 is **complete to the limit of available recon decks**. The two remaining sub-steps (group writes + table cell writes) are gated on harvesting a deck that uses those archive types — implementing them blind against synthetic fixtures would be silent-corruption-risk. Defer until a real sample lands in `recon/`.

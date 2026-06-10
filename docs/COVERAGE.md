@@ -1,6 +1,6 @@
 # KPA — Editable Surface Coverage
 
-**Last updated:** 2026-06-09 06:55 PDT (Step 4c.8 GREEN — Phase 1 CLOSED)
+**Last updated:** 2026-06-09 17:30 PDT (Step 4c.6.2 + 4c.8.2 GREEN — Phase 1.5 progressing)
 
 Per Captain 2026-06-07 08:28 PDT, KPA must address every editable
 element in the `.key` file structure. This is the live coverage tracker
@@ -201,8 +201,8 @@ for the F2d success criterion.
 | `RequireFontInBodyText` (allow-list) | **round-trip** | warning severity |
 | `RequireStyleNamePresent` (named-archive presence check) | **round-trip** | pbtype + name match |
 | `kpa.validator.available_rules()` | **round-trip** | rule discovery for YAML authoring |
-| `new_slide(kind=...)` (template instantiation) | `unmapped` | 4c.8.2 / Phase 2 — needs templateSlide ref + ownedDrawables clone |
-| `kpa harvest` CLI | `unmapped` | 4c.8.2 — nice-to-have, not Phase 1 blocking |
+| `Deck.new_slide(kind=..., after=...)` (template instantiation, all SVEF kinds) | **round-trip** | test_new_slide_4c8_2.py (13 tests) — 4c.8.2 GREEN |
+| `kpa harvest` CLI | `unmapped` | nice-to-have, optional Phase 1.5 |
 
 ## Coverage summary
 
