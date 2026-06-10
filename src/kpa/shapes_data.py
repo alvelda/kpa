@@ -472,6 +472,170 @@ class Table(_DataShapeBase):
             return str(v) if v is not None else None
         return None
 
+    # ---- cell access (TST tile codec) ----
+
+    def _table_model(self) -> Optional[dict]:
+        """Resolve the TableModelArchive object dict."""
+        tm = self.table_model_id
+        if tm is None:
+            return None
+        deck = self._slide._deck
+        res = deck._archive_by_id(tm)
+        if res is None:
+            return None
+        _yml, _arch, obj = res
+        return obj
+
+    def _strings_archive(self) -> Optional[tuple["Path", dict, dict]]:
+        """Resolve the stringTable archive (yaml_path, archive, object)."""
+        tm = self._table_model()
+        if tm is None:
+            return None
+        st_ref = tm.get("baseDataStore", {}).get("stringTable", {})
+        st_id = st_ref.get("identifier")
+        if st_id is None:
+            return None
+        return self._slide._deck._archive_by_id(str(st_id))
+
+    def _tile_archive(self) -> Optional[tuple["Path", dict, dict]]:
+        """Resolve the (first) tile archive. Currently tables in our
+        corpus all fit in a single tile (tileSize=256). Multi-tile
+        tables would need column/row -> tile mapping."""
+        tm = self._table_model()
+        if tm is None:
+            return None
+        tiles = tm.get("baseDataStore", {}).get("tiles", {}).get("tiles", [])
+        if not tiles:
+            return None
+        ref = tiles[0].get("tile", {})
+        tid = ref.get("identifier")
+        if tid is None:
+            return None
+        return self._slide._deck._archive_by_id(str(tid))
+
+    @property
+    def num_rows(self) -> int:
+        tm = self._table_model()
+        return int(tm.get("numberOfRows", 0)) if tm else 0
+
+    @property
+    def num_cols(self) -> int:
+        tm = self._table_model()
+        return int(tm.get("numberOfColumns", 0)) if tm else 0
+
+    def _strings_map(self) -> dict[int, str]:
+        res = self._strings_archive()
+        if res is None:
+            return {}
+        _y, _a, obj = res
+        return {int(e["key"]): e.get("string", "") for e in obj.get("entries", []) if "key" in e}
+
+    def cell(self, row: int, col: int):
+        """Return the decoded :class:`Cell` at (row, col), or None for
+        a structurally empty cell.
+
+        Raises IndexError on out-of-range indices.
+        """
+        from kpa.tst_cells import decode_row
+        tile_res = self._tile_archive()
+        if tile_res is None:
+            raise RuntimeError("table has no tile data")
+        _y, _a, tile_obj = tile_res
+        rows = tile_obj.get("rowInfos", [])
+        # rows are indexed by tileRowIndex; many decks have them sorted
+        # by tileRowIndex already, but be defensive.
+        target = None
+        for ri in rows:
+            if int(ri.get("tileRowIndex", -1)) == row:
+                target = ri
+                break
+        if target is None:
+            raise IndexError(f"row {row} not present in tile (rows={len(rows)})")
+        decoded = decode_row(target, self._strings_map())
+        if col < 0 or col >= len(decoded):
+            raise IndexError(f"col {col} out of range (row has {len(decoded)} cells)")
+        return decoded[col]
+
+    def values(self) -> list[list]:
+        """Return the table as a 2-D list of decoded cell values.
+        Each entry is either the typed Python value (str | int) or
+        ``None`` for empty cells. ``raw``-typed cells (unparsed format
+        like formula or date) surface as raw bytes — agents should
+        check the cell's ``.kind`` via :meth:`cell` for those."""
+        from kpa.tst_cells import decode_row
+        tile_res = self._tile_archive()
+        if tile_res is None:
+            return []
+        _y, _a, tile_obj = tile_res
+        strings = self._strings_map()
+        # Sort rowInfos by tileRowIndex for stable output
+        rows = sorted(
+            tile_obj.get("rowInfos", []),
+            key=lambda r: int(r.get("tileRowIndex", 0)),
+        )
+        out: list[list] = []
+        for ri in rows:
+            cells = decode_row(ri, strings)
+            out.append([c.value if c is not None else None for c in cells])
+        return out
+
+    def _row_info_for(self, row: int) -> Optional[dict]:
+        tile_res = self._tile_archive()
+        if tile_res is None:
+            return None
+        _y, _a, tile_obj = tile_res
+        for ri in tile_obj.get("rowInfos", []):
+            if int(ri.get("tileRowIndex", -1)) == row:
+                return ri
+        return None
+
+    def set_cell_string(self, row: int, col: int, value: str) -> "Table":
+        """Rewrite a STRING-typed cell. Raises ValueError if the cell
+        is not already STRING-typed (we preserve cell record length to
+        avoid corrupting downstream offsets)."""
+        from kpa.tst_cells import set_cell_string
+        ri = self._row_info_for(row)
+        if ri is None:
+            raise IndexError(f"row {row} not present in tile")
+        st_res = self._strings_archive()
+        if st_res is None:
+            raise RuntimeError("table has no stringTable")
+        st_yml, _st_arch, st_obj = st_res
+        set_cell_string(ri, col, value, st_obj)
+        # Mark every touched file dirty.
+        deck = self._slide._deck
+        tile_yml = self._tile_archive()[0]
+        deck._mark_aux_dirty(tile_yml)
+        deck._mark_aux_dirty(st_yml)
+        self._slide._mark_dirty()
+        return self
+
+    def set_cell_int(self, row: int, col: int, value: int) -> "Table":
+        """Rewrite an INT-typed cell. Raises ValueError if the cell is
+        not already INT-typed."""
+        from kpa.tst_cells import set_cell_int
+        ri = self._row_info_for(row)
+        if ri is None:
+            raise IndexError(f"row {row} not present in tile")
+        set_cell_int(ri, col, value)
+        deck = self._slide._deck
+        deck._mark_aux_dirty(self._tile_archive()[0])
+        self._slide._mark_dirty()
+        return self
+
+    def set_cell_currency(self, row: int, col: int, value: int) -> "Table":
+        """Rewrite a CURRENCY-typed cell (value is the raw u64). Raises
+        ValueError if the cell is not already CURRENCY-typed."""
+        from kpa.tst_cells import set_cell_currency
+        ri = self._row_info_for(row)
+        if ri is None:
+            raise IndexError(f"row {row} not present in tile")
+        set_cell_currency(ri, col, value)
+        deck = self._slide._deck
+        deck._mark_aux_dirty(self._tile_archive()[0])
+        self._slide._mark_dirty()
+        return self
+
     # ---- geometry passthrough (mirrors Chart) ----
 
     def _geometry(self) -> Optional[dict[str, Any]]:

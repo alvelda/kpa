@@ -253,6 +253,42 @@ class Deck:
     # (a full text-scan per file is much cheaper than a YAML parse).
     _CROSS_FILE_PBTYPES = ("TST.TableInfoArchive",)
 
+    def _archive_by_id(self, archive_id: str) -> Optional[tuple[Path, dict, dict]]:
+        """Find any archive in any Index/*.iwa.yaml by header.identifier.
+
+        Returns (yaml_path, archive_dict, object_dict) or None. Walks
+        every Index file on first call; results are cached.
+
+        Used by Table cell read/write (the TableModelArchive,
+        stringTable, and tile archives all live in
+        CalculationEngine.iwa.yaml, referenced by id from the slide).
+        """
+        cache = getattr(self, "_archive_id_cache", None)
+        if cache is not None:
+            res = cache.get(str(archive_id))
+            return res
+        # Build the index once.
+        cache = {}
+        idx_dir = self._unpacked_root / "Index"
+        for yml in idx_dir.rglob("*.iwa.yaml"):
+            try:
+                root = self._aux_yaml_root(yml)
+            except Exception:
+                continue
+            if not isinstance(root, dict):
+                continue
+            for chunk in root.get("chunks", []) or []:
+                for arch in chunk.get("archives", []) or []:
+                    aid = arch.get("header", {}).get("identifier")
+                    if aid is None:
+                        continue
+                    objs = arch.get("objects", []) or []
+                    if not objs:
+                        continue
+                    cache[str(aid)] = (yml, arch, objs[0])
+        self._archive_id_cache = cache
+        return cache.get(str(archive_id))
+
     def _by_parent_index(self) -> dict[str, list]:
         """Lazy: {parent_id -> [ (yaml_path, archive_dict, object_dict) ]}
         for archives in *other* Index files whose pbtype is in
