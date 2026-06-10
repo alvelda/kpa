@@ -1497,20 +1497,53 @@ class Slide(RawArchiveMixin):
 
     @property
     def groups(self) -> tuple[Group, ...]:
-        """All :class:`KN.GroupArchive` instances on this slide.
+        """All :class:`TSD.GroupArchive` instances on this slide.
 
-        Empty tuple when no groups are present (the common case for
-        text/image decks like SVEF and NCI). When groups exist, use
-        the escape hatch on the returned :class:`Group` proxies for
-        advanced mutation in Step 4c.3.
+        Apple's actual group pbtype is ``TSD.GroupArchive`` (the 4c.3
+        first pass looked for ``KN.GroupArchive``, which doesn't exist;
+        that's why this returned empty against real decks). SVEF has 43
+        groups; NCI has 3; test1 has 1.
+
+        Returns a tuple of :class:`Group` proxies whose parent slide is
+        this one (filtered by ``super.parent.identifier``). Read access
+        and child-list / geometry mutation are GREEN; deeper edits go
+        through the escape hatch.
         """
         out: list[Group] = []
+        my_id = self._slide_id
         for aid, arch in self._archive_index.items():
             for obj in arch.get("objects", []):
-                if obj.get("_pbtype") == "KN.GroupArchive":
-                    out.append(Group(slide=self, archive=obj, archive_id=aid))
+                if obj.get("_pbtype") == "TSD.GroupArchive":
+                    # Filter by parent (group's super.parent.identifier
+                    # should match this slide's drawables container).
+                    sup = obj.get("super") or {}
+                    parent = sup.get("parent") or {}
+                    pid = parent.get("identifier") if isinstance(parent, dict) else None
+                    # Accept if no parent (defensive) or parent matches
+                    # any ownedDrawable id (the slide's drawables list).
+                    if pid is None or self._owns_drawable_or_root(pid):
+                        out.append(Group(slide=self, archive=obj, archive_id=aid))
                     break
         return tuple(out)
+
+    def _owns_drawable_or_root(self, candidate_id: str) -> bool:
+        """True if ``candidate_id`` is this slide's id or any of its
+        owned drawables. Used by group-parent filtering."""
+        cid = str(candidate_id)
+        if cid == str(self._slide_id):
+            return True
+        sa = self._slide_archive or {}
+        for d in sa.get("ownedDrawables", []) or []:
+            did = d.get("identifier") if isinstance(d, dict) else d
+            if str(did) == cid:
+                return True
+        # Group can be a sibling of placeholders; also walk
+        # drawablesZOrder for completeness.
+        for d in sa.get("drawablesZOrder", []) or []:
+            did = d.get("identifier") if isinstance(d, dict) else d
+            if str(did) == cid:
+                return True
+        return False
 
     def __repr__(self):
         n_texts = len(self.texts)

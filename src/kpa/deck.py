@@ -129,43 +129,60 @@ class Deck:
 
         # Slide files are named ``Slide-<id>.iwa.yaml`` or, for slides
         # whose IWA payload spans multiple chunks, ``Slide-<id>-<n>.iwa.yaml``.
-        # We only want the primary file per slide id (the one without a
-        # trailing ``-<n>`` chunk suffix).
-        def _slide_sort_key(p: Path):
-            stem = p.stem.replace(".iwa", "")
-            parts = stem.split("-")
-            # parts[0] == 'Slide'
+        # Apple also stores a single non-suffixed ``Slide.iwa.yaml`` for the
+        # first slide in many decks (observed in SVEF, test1 — silently
+        # dropped by the previous loader).
+        #
+        # Truth-of-record: a file is a slide-file iff it contains an object
+        # whose ``_pbtype`` is ``KN.SlideArchive``. We scan the contents
+        # rather than parsing filenames, then dedupe per SlideArchive id
+        # (chunked files all describe the same slide).
+        def _file_slide_id(p: Path) -> Optional[str]:
+            """Return the KN.SlideArchive id contained in this file, or
+            None if the file holds none. We avoid a full YAML parse
+            (slow on large slide files) by sniffing the text first."""
             try:
-                primary_id = int(parts[1])
-            except (IndexError, ValueError):
-                return (10**12, 0, stem)
-            chunk_suffix = 0
-            if len(parts) > 2:
-                try:
-                    chunk_suffix = int(parts[2])
-                except ValueError:
-                    chunk_suffix = 999
-            return (primary_id, chunk_suffix, stem)
+                with _py_open(p) as fh:
+                    text = fh.read()
+            except Exception:
+                return None
+            if "_pbtype: KN.SlideArchive" not in text:
+                return None
+            # Walk via YAML to extract the id (must be exact).
+            try:
+                root = yaml.safe_load(text)
+            except Exception:
+                return None
+            if not isinstance(root, dict):
+                return None
+            for chunk in root.get("chunks", []) or []:
+                for arch in chunk.get("archives", []) or []:
+                    for obj in arch.get("objects", []) or []:
+                        if obj.get("_pbtype") == "KN.SlideArchive":
+                            ident = arch.get("header", {}).get("identifier")
+                            return str(ident) if ident is not None else None
+            return None
 
-        all_slide_files = sorted(
-            idx_dir.glob("Slide-*.iwa.yaml"),
-            key=_slide_sort_key,
-        )
-        # Keep only the primary chunk per slide id.
-        seen_ids: set[int] = set()
+        # Discover every file with a real KN.SlideArchive payload.
+        candidate_files = sorted(idx_dir.glob("Slide*.iwa.yaml"))
+        seen_slide_ids: set[str] = set()
         primary: list[Path] = []
-        for p in all_slide_files:
-            stem = p.stem.replace(".iwa", "")
-            parts = stem.split("-")
+        for p in candidate_files:
+            sid = _file_slide_id(p)
+            if sid is None or sid in seen_slide_ids:
+                continue
+            seen_slide_ids.add(sid)
+            primary.append(p)
+
+        # Sort by numeric slide id when possible (Keynote internal order;
+        # presentation order resolves later via KN.ShowArchive in Step 5).
+        def _sort_by_sid(p: Path):
             try:
-                pid = int(parts[1])
-            except (IndexError, ValueError):
-                continue
-            if pid in seen_ids:
-                continue
-            if len(parts) == 2:  # primary chunk
-                seen_ids.add(pid)
-                primary.append(p)
+                sid_int = int(_file_slide_id(p) or "0")
+            except (ValueError, TypeError):
+                sid_int = 0
+            return (sid_int, p.name)
+        primary.sort(key=_sort_by_sid)
         self._slide_yaml_paths = primary
 
         # Resolve canvas dimensions from Document.iwa.yaml's KN.ShowArchive.
