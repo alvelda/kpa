@@ -35,6 +35,7 @@ with a known chart kind/series to round-trip.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 from kpa.escape import RawArchiveMixin
@@ -399,15 +400,77 @@ class Chart(_DataShapeBase):
 
 
 class Table(_DataShapeBase):
-    """Read-only proxy for a :class:`TST.TableInfoArchive` on a slide.
+    """Proxy for a :class:`TST.TableInfoArchive` on a slide.
 
-    First-pass scope: identifier + geometry passthrough + escape
-    hatch. Cell read/write API deferred to 4c.6.2 (heavy schema, no
-    sample deck instance to verify against in this repo's SVEF/NCI
-    fixtures).
+    First-pass scope: identifier + geometry passthrough + geometry
+    mutation + ``tableModel`` / ``summaryModel`` refs + escape hatch.
+
+    Cell read/write goes through ``TST.TableModelArchive.baseDataStore``
+    (tile-archived cell payloads). Those are heavy to decode safely;
+    we provide the geometry path now and surface the reference ids so
+    agents can drop into the escape hatch for cell-level work until a
+    typed cell API lands.
+
+    Note (4c.6.2-tables): on-slide tables ship their
+    ``TST.TableInfoArchive`` in ``CalculationEngine.iwa.yaml`` rather
+    than the slide's own YAML. ``Slide.tables`` finds them via the
+    deck-wide ``_by_parent_index``. ``Table._aux_yaml_path`` (set by
+    ``Slide.tables``) records the source file so geometry mutations
+    can mark it dirty.
     """
 
     PBTYPE = "TST.TableInfoArchive"
+
+    # Set by Slide.tables when the table archive lives in a sibling
+    # Index file (e.g. CalculationEngine.iwa.yaml).
+    _aux_yaml_path: Optional[Path] = None
+
+    # ---- geometry setters ----
+
+    def _mark_dirty_cross_file(self) -> None:
+        """Mark the slide and (when present) the sibling file dirty."""
+        self._slide._mark_dirty()
+        if self._aux_yaml_path is not None:
+            deck = self._slide._deck
+            deck._mark_aux_dirty(self._aux_yaml_path)
+
+    def set_position(self, x: float, y: float) -> "Table":
+        g = self._shape_base().setdefault("geometry", {})
+        g["position"] = {"x": float(x), "y": float(y)}
+        self._mark_dirty_cross_file()
+        return self
+
+    def set_size(self, width: float, height: float) -> "Table":
+        g = self._shape_base().setdefault("geometry", {})
+        g["size"] = {"width": float(width), "height": float(height)}
+        self._mark_dirty_cross_file()
+        return self
+
+    def move(self, dx: float = 0.0, dy: float = 0.0) -> "Table":
+        x, y = self.position or (0.0, 0.0)
+        return self.set_position(x + float(dx), y + float(dy))
+
+    # ---- model references (for escape-hatch cell work) ----
+
+    @property
+    def table_model_id(self) -> Optional[str]:
+        """Identifier of the :class:`TST.TableModelArchive` that holds
+        this table's cells (in CalculationEngine.iwa.yaml)."""
+        ref = self._archive.get("tableModel")
+        if isinstance(ref, dict):
+            v = ref.get("identifier")
+            return str(v) if v is not None else None
+        return None
+
+    @property
+    def summary_model_id(self) -> Optional[str]:
+        """Identifier of the :class:`TST.SummaryCellVendorArchive`
+        backing this table's summary (if any)."""
+        ref = self._archive.get("summaryModel")
+        if isinstance(ref, dict):
+            v = ref.get("identifier")
+            return str(v) if v is not None else None
+        return None
 
     # ---- geometry passthrough (mirrors Chart) ----
 

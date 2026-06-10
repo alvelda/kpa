@@ -1238,16 +1238,43 @@ class Slide(RawArchiveMixin):
         """All :class:`Table` instances on this slide
         (:class:`TST.TableInfoArchive`).
 
-        Read-only first pass (4c.6): identifier + geometry passthrough
-        + escape hatch. Cell read/write deferred to 4c.6.2.
+        Tables on slides have a peculiarity: the ``TST.TableInfoArchive``
+        ships in ``CalculationEngine.iwa.yaml`` (an auxiliary deck-wide
+        file), not in the slide's own YAML. The 4c.6 first pass only
+        scanned the per-slide archive index and silently returned empty
+        for decks like test1 that do contain on-slide tables.
+
+        4c.6.2 fix: also consult the deck-wide cross-file index, finding
+        TST.TableInfoArchive instances whose ``super.parent.identifier``
+        matches this slide.
         """
         from kpa.shapes_data import Table
         out: list = []
+        # First: same-file lookup (covers the historical case + future-proof
+        # against decks that do inline the table archive).
         for aid, arch in self._archive_index.items():
             for obj in arch.get("objects", []):
                 if obj.get("_pbtype") == "TST.TableInfoArchive":
                     out.append(Table(slide=self, archive=obj, archive_id=aid))
                     break
+        # Second: cross-file lookup via deck._by_parent_index.
+        my_id = str(self._slide_id)
+        seen_ids = {t._archive_id for t in out}
+        try:
+            by_parent = self._deck._by_parent_index()
+        except Exception:
+            by_parent = {}
+        for yaml_path, arch, obj in by_parent.get(my_id, []):
+            if obj.get("_pbtype") != "TST.TableInfoArchive":
+                continue
+            aid = str(arch.get("header", {}).get("identifier"))
+            if aid in seen_ids:
+                continue
+            t = Table(slide=self, archive=obj, archive_id=aid)
+            # Tag the table with its source file so mutations can flush it.
+            t._aux_yaml_path = yaml_path  # type: ignore[attr-defined]
+            out.append(t)
+            seen_ids.add(aid)
         return tuple(out)
 
     # ---- animations (Step 4c.4) ----

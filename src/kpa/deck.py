@@ -210,6 +210,80 @@ class Deck:
         # 4c.1: load the document stylesheet for style resolution
         self._stylesheet = load_stylesheet(self._unpacked_root)
 
+    # ---------- Deck-wide cross-file archive index (4c.6.2-tables) ----------
+    #
+    # Some drawables a slide owns visually live in *other* Index files
+    # rather than the slide's own YAML. The clearest case is on-slide
+    # tables: ``TST.TableInfoArchive`` ships in
+    # ``CalculationEngine.iwa.yaml`` even though its
+    # ``super.parent.identifier`` points at the slide. The per-slide
+    # ``_archive_index`` cannot reach those archives.
+    #
+    # This lazy index walks every ``Index/*.iwa.yaml`` once and indexes
+    # every archive by its declared ``parent.identifier``. Slides query
+    # it to find children that live in sibling files. Mutations on the
+    # returned archive dicts mutate the cached YAML tree; ``save()``
+    # already re-serializes any file whose path was touched.
+
+    def _aux_yaml_root(self, yaml_path: Path) -> dict:
+        """Lazy-load and cache an arbitrary Index/*.iwa.yaml file's parsed
+        tree, so cross-file mutations flush on save()."""
+        cache = getattr(self, "_aux_yaml_cache", None)
+        if cache is None:
+            cache = {}
+            self._aux_yaml_cache = cache
+        key = str(yaml_path)
+        if key in cache:
+            return cache[key]
+        with _py_open(yaml_path) as fh:
+            root = yaml.safe_load(fh)
+        cache[key] = root
+        return root
+
+    def _mark_aux_dirty(self, yaml_path: Path) -> None:
+        """Tell save() that this auxiliary file needs to be flushed."""
+        dirty = getattr(self, "_aux_dirty", None)
+        if dirty is None:
+            dirty = set()
+            self._aux_dirty = dirty
+        dirty.add(str(yaml_path))
+
+    def _by_parent_index(self) -> dict[str, list]:
+        """Lazy: {parent_id -> [ (yaml_path, archive_dict, object_dict) ]}
+        for every archive in every Index/*.iwa.yaml.
+
+        Used by Slide.tables (and any future cross-file lookups) to find
+        drawables whose ``super.parent.identifier`` points back at a
+        slide.
+        """
+        cached = getattr(self, "_by_parent_cache", None)
+        if cached is not None:
+            return cached
+        index: dict[str, list] = {}
+        idx_dir = self._unpacked_root / "Index"
+        for yml in idx_dir.rglob("*.iwa.yaml"):
+            try:
+                root = self._aux_yaml_root(yml)
+            except Exception:
+                continue
+            if not isinstance(root, dict):
+                continue
+            for chunk in root.get("chunks", []) or []:
+                for arch in chunk.get("archives", []) or []:
+                    for obj in arch.get("objects", []) or []:
+                        sup = obj.get("super")
+                        if not isinstance(sup, dict):
+                            continue
+                        parent = sup.get("parent")
+                        if not isinstance(parent, dict):
+                            continue
+                        pid = parent.get("identifier")
+                        if pid is None:
+                            continue
+                        index.setdefault(str(pid), []).append((yml, arch, obj))
+        self._by_parent_cache = index
+        return index
+
     # ---------- Document.iwa lazy access (4c.5) ----------
 
     def _document_root(self) -> dict:
@@ -341,6 +415,25 @@ class Deck:
                     allow_unicode=True,
                 )
             self._document_dirty = False
+
+        # 4c.6.2-tables: flush any auxiliary Index file (e.g. CalculationEngine.iwa.yaml)
+        # whose cached YAML tree was mutated via the cross-file index.
+        aux_dirty = getattr(self, "_aux_dirty", None)
+        aux_cache = getattr(self, "_aux_yaml_cache", None)
+        if aux_dirty and aux_cache:
+            for key in list(aux_dirty):
+                root = aux_cache.get(key)
+                if root is None:
+                    continue
+                with _py_open(Path(key), "w") as f:
+                    yaml.dump(
+                        root,
+                        f,
+                        default_flow_style=False,
+                        sort_keys=False,
+                        allow_unicode=True,
+                    )
+            self._aux_dirty = set()
 
         out = Path(path)
         out.parent.mkdir(parents=True, exist_ok=True)
