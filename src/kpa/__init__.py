@@ -29,5 +29,6 @@ from __future__ import annotations
 
 from kpa._version import __version__
 from kpa.deck import Deck, open  # noqa: A004  (deliberately shadow builtins.open in module scope only)
+from kpa.richtext import Paragraph, Run
 
-__all__ = ["Deck", "open", "__version__"]
+__all__ = ["Deck", "open", "Paragraph", "Run", "__version__"]

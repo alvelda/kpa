@@ -506,16 +506,89 @@ class TextBlock(_ShapeStyleAccessors, RawArchiveMixin):
             )
         # TSWP.StorageArchive.text is a repeated string.
         # Single-string replacement is the safe path: one run, no style.
+        # The range tables (tableParaStyle/tableCharStyle/etc.) are
+        # truncated to entries with characterIndex <= len(value) so the
+        # YAML stays well-formed even when the new text is shorter than
+        # the old.
+        new_len = len(value)
         self._storage_archive["text"] = [value]
-        # Reset the para tables so character counts remain consistent.
-        # Each table entry's characterIndex must be <= len(text). We
-        # keep them as-is for the first entry (characterIndex: 0) which
-        # is universal; subsequent entries that point past the end
-        # cause Keynote to silently ignore them but the YAML stays
-        # roundtrip-safe. For Step 4b we keep this simple; Step 4c
-        # will properly retokenize the runs.
-        # We also clear any per-character style overrides so the master
-        # style applies cleanly.
+        for k in (
+            "tableParaStyle",
+            "tableListStyle",
+            "tableDropCapStyle",
+            "tableParaBidi",
+            "tableParaData",
+            "tableCharStyle",
+        ):
+            tbl = self._storage_archive.get(k)
+            if not isinstance(tbl, dict):
+                continue
+            entries = tbl.get("entries", []) or []
+            tbl["entries"] = [
+                e for e in entries if int(e.get("characterIndex", 0)) <= new_len
+            ]
+            if not tbl["entries"]:
+                # Always keep at least the root entry.
+                tbl["entries"] = [{"characterIndex": 0}]
+        self._slide._mark_dirty()
+
+    # --- rich text (4c.9: TSWP paragraph + run editing) ---
+
+    @property
+    def paragraphs(self) -> tuple:
+        """The text body decoded as a tuple of :class:`Paragraph`
+        instances (each with optional inline ``runs``).
+
+        See :mod:`kpa.richtext` for the dataclass shapes.
+        """
+        if self._storage_archive is None:
+            return tuple()
+        from kpa.richtext import decode_storage
+        return tuple(decode_storage(self._storage_archive))
+
+    def set_paragraphs(self, paragraphs) -> None:
+        """Replace the text body with a list of :class:`Paragraph`
+        instances. The storage's ``styleSheet`` reference is preserved;
+        per-paragraph and per-run style refs are rewritten from the
+        passed Paragraph/Run instances. Pass ``None`` style refs to
+        defer to the master.
+
+        Raises ValueError if any Run sequence within a paragraph
+        doesn't concatenate to the paragraph's text.
+        """
+        if self._storage_archive is None:
+            raise RuntimeError(
+                f"TextBlock {self._shape_id} has no storage; can't set paragraphs."
+            )
+        from kpa.richtext import encode_storage, Paragraph as _P
+        # Allow callers to pass dicts or Paragraph instances.
+        normalized: list = []
+        for p in paragraphs:
+            if isinstance(p, _P):
+                normalized.append(p)
+            elif isinstance(p, dict):
+                from kpa.richtext import Run as _R
+                runs = [
+                    _R(text=r["text"], char_style_id=r.get("char_style_id"))
+                    if isinstance(r, dict) else r
+                    for r in p.get("runs", []) or []
+                ]
+                normalized.append(
+                    _P(
+                        text=p["text"],
+                        para_style_id=p.get("para_style_id"),
+                        list_style_id=p.get("list_style_id"),
+                        drop_cap_style_id=p.get("drop_cap_style_id"),
+                        para_bidi=p.get("para_bidi"),
+                        para_data=p.get("para_data"),
+                        runs=runs,
+                    )
+                )
+            else:
+                raise TypeError(
+                    f"set_paragraphs expects Paragraph or dict, got {type(p).__name__}"
+                )
+        encode_storage(self._storage_archive, normalized)
         self._slide._mark_dirty()
 
     # --- geometry passthrough ---
