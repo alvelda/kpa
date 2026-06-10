@@ -1,6 +1,6 @@
 # KPA — Post-Compaction Handoff
 
-**Last updated:** 2026-06-09 07:00 PDT (Phase 1 CLOSED)
+**Last updated:** 2026-06-09 17:35 PDT (Phase 1.5 advanced: 4c.8.2 + 4c.6.2 GREEN)
 **Purpose:** Snapshot for the next session (likely launched in Telegram HQ → "Keynote" topic) to pick up KPA work without losing the thread.
 **Owner:** Scotty (iMac)
 **Captain:** Phillip Alvelda
@@ -10,13 +10,15 @@
 
 ## TL;DR for the next session
 
-> 🎉 **Phase 1 is CLOSED.** All nine sub-steps GREEN.
-> **121/121 tests passing** in ~30 min. Working tree clean on `main`.
-> **Recommended next:** Captain's call — either (A) Phase 1.5 polish
-> (group writes, chart/table writes, `new_slide(kind=...)`, `kpa harvest` CLI),
-> or (B) Phase 2: typed accessors for deferred items + first real Brainworks
-> deck authored via kpa.
-> All planning artifacts are in `docs/` and committed.
+> 🎉 **Phase 1 CLOSED.** Phase 1.5 in progress: **3 of 5 sub-steps done.**
+> - ✅ **4c.8.2 new_slide** (13 tests) — `Deck.new_slide(kind=..., after=...)` template instantiation
+> - ✅ **4c.6.2 chart writes** (17 tests) — chart_type / chart_style_id / column_names / row_names / series_values / geometry mutators / mark_dirty_for_recompute
+> - ✅ **4c.5.2 audio writes** — already shipped in 4c.5 (planning miscount; volume round-trip green on Movie + Soundtrack)
+> - ⏸️ **4c.3.2 group writes** — DEFERRED. Zero KN.GroupArchive instances in SVEF or NCI; round-trip cannot be validated.
+> - ⏸️ **4c.6.2-tables table cell writes** — DEFERRED. Zero on-slide TST.TableInfoArchive instances in SVEF or NCI; round-trip cannot be validated.
+> - Both deferrals are blocked on harvesting a real Apple-produced recon deck that uses those archive types. Implementing blind against synthetic fixtures would risk silent corruption.
+> Tip-of-tree commits: `2fd26b3` (chart writes) → `e0256cd` (new_slide) → `951cceb` (Phase 1.5 plan) on `origin/main`.
+> **Recommended next:** Captain's call — (A) hunt for a sample deck with groups + tables to close 4c.3.2 / 4c.6.2-tables, (B) start Phase 2 (first real Brainworks deck authored via kpa), or (C) optional `kpa harvest` CLI.
 
 ---
 
