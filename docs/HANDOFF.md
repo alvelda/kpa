@@ -1,6 +1,6 @@
 # KPA — Post-Compaction Handoff
 
-**Last updated:** 2026-06-09 17:35 PDT (Phase 1.5 advanced: 4c.8.2 + 4c.6.2 GREEN)
+**Last updated:** 2026-06-10 04:55 PDT (Phase 1.5 COMPLETE; all five sub-steps GREEN)
 **Purpose:** Snapshot for the next session (likely launched in Telegram HQ → "Keynote" topic) to pick up KPA work without losing the thread.
 **Owner:** Scotty (iMac)
 **Captain:** Phillip Alvelda
@@ -10,15 +10,15 @@
 
 ## TL;DR for the next session
 
-> 🎉 **Phase 1 CLOSED.** Phase 1.5 in progress: **3 of 5 sub-steps done.**
-> - ✅ **4c.8.2 new_slide** (13 tests) — `Deck.new_slide(kind=..., after=...)` template instantiation
-> - ✅ **4c.6.2 chart writes** (17 tests) — chart_type / chart_style_id / column_names / row_names / series_values / geometry mutators / mark_dirty_for_recompute
-> - ✅ **4c.5.2 audio writes** — already shipped in 4c.5 (planning miscount; volume round-trip green on Movie + Soundtrack)
-> - ⏸️ **4c.3.2 group writes** — DEFERRED. Zero KN.GroupArchive instances in SVEF or NCI; round-trip cannot be validated.
-> - ⏸️ **4c.6.2-tables table cell writes** — DEFERRED. Zero on-slide TST.TableInfoArchive instances in SVEF or NCI; round-trip cannot be validated.
-> - Both deferrals are blocked on harvesting a real Apple-produced recon deck that uses those archive types. Implementing blind against synthetic fixtures would risk silent corruption.
-> Tip-of-tree commits: `2fd26b3` (chart writes) → `e0256cd` (new_slide) → `951cceb` (Phase 1.5 plan) on `origin/main`.
-> **Recommended next:** Captain's call — (A) hunt for a sample deck with groups + tables to close 4c.3.2 / 4c.6.2-tables, (B) start Phase 2 (first real Brainworks deck authored via kpa), or (C) optional `kpa harvest` CLI.
+> 🎉 **Phase 1 + Phase 1.5 CLOSED.** All sub-steps GREEN.
+> - ✅ **4c.8.2 new_slide** (13 tests) — `Deck.new_slide(kind=..., after=...)`
+> - ✅ **4c.6.2 chart writes** (17 tests)
+> - ✅ **4c.5.2 audio writes** — already shipped in 4c.5
+> - ✅ **4c.3.2 group writes** (9 tests) — was deferred falsely; pbtype bug (Apple uses `TSD.GroupArchive`, not `KN.GroupArchive`). Loader bug also caught & fixed (was dropping `Slide.iwa.yaml` and chunked-only files; SVEF: 58 → 60 slides).
+> - ✅ **4c.6.2-tables table discovery + geometry** (8 tests) — was deferred falsely; tables live in `CalculationEngine.iwa.yaml` (cross-file index needed).
+> - ✅ **4c.6.3 TST cell read/write codec** (10 tests) — `Table.values()`, `Table.cell(r,c)`, `Table.set_cell_string/int/currency` with length-preserving binary record edits.
+> Tip-of-tree commits: `6265139` (cell codec) → `64c9525` (perf) → `ce92d3b` (cross-file index) → `788ef93` (loader + groups) → `3243a1e` (handoff) → `2fd26b3` (chart writes) on `origin/main`.
+> **Recommended next:** Captain's call — (A) Phase 2 (first Brainworks deck authored via kpa), (B) close the remaining TST cell-format gaps (float, percent, formula, date — currently fall through to `kind='raw'`), (C) text-box writes (rich text + multi-paragraph), (D) optional `kpa harvest` CLI.
 
 ---
 

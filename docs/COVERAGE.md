@@ -1,6 +1,6 @@
 # KPA — Editable Surface Coverage
 
-**Last updated:** 2026-06-09 17:30 PDT (Step 4c.6.2 + 4c.8.2 GREEN — Phase 1.5 progressing)
+**Last updated:** 2026-06-10 04:55 PDT (Step 4c.6.3 GREEN — TST cell read/write codec)
 
 Per Captain 2026-06-07 08:28 PDT, KPA must address every editable
 element in the `.key` file structure. This is the live coverage tracker
