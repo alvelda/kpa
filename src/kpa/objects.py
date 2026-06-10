@@ -1041,6 +1041,13 @@ class Slide(RawArchiveMixin):
 
     # --- RawArchiveMixin hooks (operate on the slide archive itself) ---
 
+    @property
+    def _archive_id(self) -> Optional[str]:
+        """Identifier of the underlying KN.SlideArchive (alias for
+        ``_slide_id``). Matches the ``_archive_id`` attribute used by
+        every other proxy (TextBlock, Image, ...)."""
+        return self._slide_id
+
     def _raw_archive_root(self) -> dict:
         """For Slide, the raw archive is the KN.SlideArchive object."""
         return self._slide_archive or {}

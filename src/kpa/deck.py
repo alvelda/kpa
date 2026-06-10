@@ -256,6 +256,30 @@ class Deck:
         archs = self._find_document_archives("KN.LiveVideoSource")
         return tuple(LiveVideoSource(deck=self, archive=a) for a in archs)
 
+    # ---------- 4c.8.2 new slide instantiation ----------
+
+    def new_slide(self, *, kind: str, after=None):
+        """Create a new slide from a template kind (4c.8.2).
+
+        Parameters
+        ----------
+        kind : str
+            Apple's canonical template name (case-insensitive), e.g.
+            ``'BLANK'``, ``'TITLE_AND_BODY'``,
+            ``'TITLE_AND_TWO_COLUMNS'``. See
+            :func:`kpa.slide_kinds.list_slide_kinds` for the catalogue.
+        after : int or None
+            Insert position (0-based slide index). If None, the new
+            slide is appended. ``after=0`` makes it the second slide.
+
+        Returns
+        -------
+        Slide
+            The newly created slide, fully mutable.
+        """
+        from kpa.new_slide import new_slide as _new_slide
+        return _new_slide(self, kind=kind, after=after)
+
     def save(self, path: str | Path) -> Path:
         """Write the deck back to disk as a ``.key`` file.
 
