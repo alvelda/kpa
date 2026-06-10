@@ -158,8 +158,12 @@ for the F2d success criterion.
 | `Chart.series[i].color` (set series color) | TSCH.ChartSeriesStyleArchive | `unmapped` | — | 4c.6.2 |
 | `Chart.axis.title`, `.labels` | TSCH.ChartAxisStyleArchive | `unmapped` | — | 4c.6.2 |
 | `Chart.legend.visible`, `.position` | TSCH.LegendStyleArchive | `unmapped` | — | 4c.6.2 |
-| `Table.cell(r,c).value` get/set | TST.* | `unmapped` | — | 4c.6.2 (needs synthetic deck) |
-| `Table.cell(r,c).set_style(...)` | TST.CellStyleArchive | `unmapped` | — | 4c.6.2 |
+| `Slide.tables` (cross-file: CalculationEngine.iwa.yaml) | TST.TableInfoArchive | **round-trip** | test_table_writes_4c6_2.py::test_test1_has_one_table | 4c.6.2-tables |
+| `Table.position` / `.size` / `.angle` (read) | TSD shape base | **round-trip** | test_table_writes_4c6_2.py::test_table_position_size_angle_read | 4c.6.2-tables |
+| `Table.set_position(x,y)` / `set_size(w,h)` / `move(dx,dy)` (aux-file flush) | TSD shape base | **round-trip** | test_table_writes_4c6_2.py::test_table_set_position_round_trip | 4c.6.2-tables |
+| `Table.table_model_id` / `Table.summary_model_id` | TST.TableInfoArchive | **round-trip** | test_table_writes_4c6_2.py::test_table_references_table_model | 4c.6.2-tables |
+| `Table.cell(r,c).value` get/set | TST.TableModelArchive + DataStore | `unmapped` | — | Phase 2 (heavy cell-tile schema; escape hatch reaches it now) |
+| `Table.cell(r,c).set_style(...)` | TST.CellStyleArchive | `unmapped` | — | Phase 2 |
 | Full chart object model | TSCH.* | `unmapped` | — | **Step 5** |
 | Full table object model | TST.* | `unmapped` | — | **Step 5** |
 

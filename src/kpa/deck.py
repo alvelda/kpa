@@ -248,20 +248,43 @@ class Deck:
             self._aux_dirty = dirty
         dirty.add(str(yaml_path))
 
+    # Cross-file pbtypes we index. Currently only on-slide tables; add
+    # more as new sub-steps need them. The sniff filter keeps this fast
+    # (a full text-scan per file is much cheaper than a YAML parse).
+    _CROSS_FILE_PBTYPES = ("TST.TableInfoArchive",)
+
     def _by_parent_index(self) -> dict[str, list]:
         """Lazy: {parent_id -> [ (yaml_path, archive_dict, object_dict) ]}
-        for every archive in every Index/*.iwa.yaml.
+        for archives in *other* Index files whose pbtype is in
+        ``_CROSS_FILE_PBTYPES``. Skips slide-content files (those are
+        already walked by ``Slide._archive_index``).
 
-        Used by Slide.tables (and any future cross-file lookups) to find
+        Used by ``Slide.tables`` (and future cross-file lookups) to find
         drawables whose ``super.parent.identifier`` points back at a
-        slide.
+        slide. Sniffs the raw text first to avoid YAML-parsing every
+        file in large decks (SVEF has ~100 Index files; only one
+        contains a TableInfoArchive).
         """
         cached = getattr(self, "_by_parent_cache", None)
         if cached is not None:
             return cached
         index: dict[str, list] = {}
         idx_dir = self._unpacked_root / "Index"
+        slide_paths = {str(p) for p in self._slide_yaml_paths}
         for yml in idx_dir.rglob("*.iwa.yaml"):
+            # Skip slide-content files: they're covered by per-slide indexes.
+            if str(yml) in slide_paths:
+                continue
+            # Fast sniff: skip files that obviously don't carry any of the
+            # cross-file pbtypes we care about. The file is read once for
+            # the sniff; the YAML parse only happens on a hit.
+            try:
+                with _py_open(yml) as fh:
+                    text = fh.read()
+            except Exception:
+                continue
+            if not any(t in text for t in self._CROSS_FILE_PBTYPES):
+                continue
             try:
                 root = self._aux_yaml_root(yml)
             except Exception:
@@ -271,6 +294,8 @@ class Deck:
             for chunk in root.get("chunks", []) or []:
                 for arch in chunk.get("archives", []) or []:
                     for obj in arch.get("objects", []) or []:
+                        if obj.get("_pbtype") not in self._CROSS_FILE_PBTYPES:
+                            continue
                         sup = obj.get("super")
                         if not isinstance(sup, dict):
                             continue
