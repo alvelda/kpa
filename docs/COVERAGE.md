@@ -1,6 +1,6 @@
 # KPA — Editable Surface Coverage
 
-**Last updated:** 2026-06-10 04:55 PDT (Step 4c.6.3 GREEN — TST cell read/write codec)
+**Last updated:** 2026-06-10 07:15 PDT (Steps 4c.9 + 4c.10 GREEN — rich text + visual smoke scaffold)
 
 Per Captain 2026-06-07 08:28 PDT, KPA must address every editable
 element in the `.key` file structure. This is the live coverage tracker
@@ -23,6 +23,13 @@ for the F2d success criterion.
 | Capability | Protobuf type(s) | Status | Test | Notes |
 |---|---|---|---|---|
 | `TextBlock.text` get/set | TSWP.StorageArchive.text | **round-trip** | test_edits.py::test_text_edit_and_move_round_trip | Step 4b |
+| `TextBlock.paragraphs` (read decoded Paragraph[]) | TSWP.StorageArchive range tables | **round-trip** | test_richtext_4c9.py::test_decode_single_paragraph_with_inline_run + test_decode_multi_paragraph_with_list_styles | 4c.9 |
+| `TextBlock.set_paragraphs([Paragraph(...)])` | TSWP.StorageArchive (rewrite all 7 range tables) | **round-trip** | test_richtext_4c9.py::test_replace_with_two_paragraphs_round_trip + test_multi_paragraph_text_join_with_newline | 4c.9 |
+| Inline char-style runs preserved across save/reload | TSWP.tableCharStyle | **round-trip** | test_richtext_4c9.py::test_replace_with_two_paragraphs_round_trip | 4c.9 |
+| Per-paragraph list / drop-cap / bidi / data style refs | TSWP.tableListStyle, tableDropCapStyle, tableParaBidi, tableParaData | **round-trip** | test_richtext_4c9.py::test_decode_preserves_para_style_ids | 4c.9 |
+| Visual smoke / golden-image diff (pixel-tolerant) | Keynote.app PNG export + Pillow diff | **unit-test GREEN; live driver pending TCC** | test_visual_smoke_4c10.py (11 tests) | 4c.10 |
+| Link runs (TSWP.LinkArchive) | TSWP.tableCharStyle + link refs | `unmapped` | — | Phase 2 |
+| Footnote refs / smart fields (date, slide #, page #) | TSWP.SmartFieldArchive | `unmapped` | — | Phase 2 |
 | `TextBlock.position`, `.size` | shape geometry | **round-trip** | test_edits.py | Step 4b |
 | `TextBlock.move(dx, dy)` | shape geometry | **round-trip** | test_edits.py | Step 4b |
 | `TextBlock.font_name` | TSWP.CharacterStyleArchive.fontName | **round-trip** | test_styling_4c1.py::test_font_name_round_trip | 4c.1 |
